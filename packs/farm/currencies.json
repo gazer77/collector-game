@@ -1,0 +1,4 @@
+[
+  { "id": "coins", "name": "Coins", "asset": "currency.coins" },
+  { "id": "gems", "name": "Gems", "asset": "currency.gems" }
+]

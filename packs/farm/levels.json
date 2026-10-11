@@ -1,0 +1,12 @@
+[
+  { "level": 1,  "xpRequired": 0 },
+  { "level": 2,  "xpRequired": 20,   "rewards": { "coins": 50,  "gems": 1 }, "itemRewards": { "corn": 3 } },
+  { "level": 3,  "xpRequired": 60,   "rewards": { "coins": 100, "gems": 1 }, "itemRewards": { "carrot": 3 } },
+  { "level": 4,  "xpRequired": 130,  "rewards": { "coins": 150, "gems": 2 } },
+  { "level": 5,  "xpRequired": 240,  "rewards": { "coins": 200, "gems": 2 } },
+  { "level": 6,  "xpRequired": 400,  "rewards": { "coins": 300, "gems": 3 } },
+  { "level": 7,  "xpRequired": 620,  "rewards": { "coins": 400, "gems": 3 } },
+  { "level": 8,  "xpRequired": 900,  "rewards": { "coins": 500, "gems": 4 } },
+  { "level": 9,  "xpRequired": 1250, "rewards": { "coins": 650, "gems": 4 } },
+  { "level": 10, "xpRequired": 1700, "rewards": { "coins": 800, "gems": 5 } }
+]

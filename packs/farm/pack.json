@@ -1,0 +1,20 @@
+{
+  "id": "farm",
+  "name": "Collector Farm",
+  "version": "0.1.0",
+  "clock": { "mode": "realTime", "offline": "paused" },
+  "speedUp": { "currency": "gems", "secondsPerUnit": 600, "minCost": 1 },
+  "start": {
+    "currencies": { "coins": 250, "gems": 5 },
+    "items": { "wheat": 6 },
+    "placements": [
+      { "producer": "field", "x": 1, "y": 1 },
+      { "producer": "field", "x": 2, "y": 1 },
+      { "producer": "field", "x": 3, "y": 1 },
+      { "producer": "field", "x": 1, "y": 2 },
+      { "producer": "field", "x": 2, "y": 2 },
+      { "producer": "field", "x": 3, "y": 2 },
+      { "producer": "feed_mill", "x": 6, "y": 1 }
+    ]
+  }
+}

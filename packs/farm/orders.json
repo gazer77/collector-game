@@ -1,0 +1,14 @@
+{
+  "slots": 3,
+  "unlockLevel": 1,
+  "minItems": 1,
+  "maxItems": 3,
+  "minQuantity": 1,
+  "maxQuantity": 4,
+  "rewardCurrency": "coins",
+  "rewardMultiplier": 1.6,
+  "xpPerCurrency": 0.3,
+  "refillDelaySeconds": 30,
+  "discardCooldownSeconds": 300,
+  "bonus": { "currency": "gems", "chance": 0.08, "amount": 1 }
+}

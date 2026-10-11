@@ -1,0 +1,10 @@
+{
+  "width": 20,
+  "height": 16,
+  "parcels": [
+    { "id": "home",      "x": 0,  "y": 0, "width": 10, "height": 8, "startOwned": true },
+    { "id": "east",      "x": 10, "y": 0, "width": 10, "height": 8, "cost": { "currencies": { "coins": 500 } },  "unlockLevel": 2 },
+    { "id": "south",     "x": 0,  "y": 8, "width": 10, "height": 8, "cost": { "currencies": { "coins": 1500 } }, "unlockLevel": 4 },
+    { "id": "southeast", "x": 10, "y": 8, "width": 10, "height": 8, "cost": { "currencies": { "coins": 4000 } }, "unlockLevel": 6 }
+  ]
+}

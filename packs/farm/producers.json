@@ -1,0 +1,68 @@
+[
+  {
+    "id": "field", "name": "Field", "asset": "producer.field", "category": "field",
+    "width": 1, "height": 1, "cost": { "currencies": { "coins": 10 } }, "unlockLevel": 1,
+    "queueMode": "parallel",
+    "limits": [ { "level": 1, "count": 8 }, { "level": 3, "count": 12 }, { "level": 5, "count": 16 }, { "level": 7, "count": 20 } ],
+    "tiers": [ { "slots": 1 } ]
+  },
+  {
+    "id": "chicken_coop", "name": "Chicken Coop", "asset": "producer.chicken_coop", "category": "animal",
+    "width": 2, "height": 2, "cost": { "currencies": { "coins": 120 } }, "unlockLevel": 1,
+    "queueMode": "parallel",
+    "limits": [ { "level": 1, "count": 1 }, { "level": 4, "count": 2 } ],
+    "tiers": [
+      { "slots": 3 },
+      { "slots": 5, "cost": { "currencies": { "coins": 300 } }, "unlockLevel": 3 },
+      { "slots": 6, "durationMultiplier": 0.8, "cost": { "currencies": { "coins": 800 } }, "unlockLevel": 5 }
+    ]
+  },
+  {
+    "id": "cow_pasture", "name": "Cow Pasture", "asset": "producer.cow_pasture", "category": "animal",
+    "width": 3, "height": 2, "cost": { "currencies": { "coins": 400 } }, "unlockLevel": 3,
+    "queueMode": "parallel",
+    "limits": [ { "level": 3, "count": 1 }, { "level": 6, "count": 2 } ],
+    "tiers": [
+      { "slots": 3 },
+      { "slots": 5, "cost": { "currencies": { "coins": 800 } }, "unlockLevel": 5 }
+    ]
+  },
+  {
+    "id": "pig_pen", "name": "Pig Pen", "asset": "producer.pig_pen", "category": "animal",
+    "width": 2, "height": 2, "cost": { "currencies": { "coins": 700 } }, "unlockLevel": 5,
+    "queueMode": "parallel",
+    "limits": [ { "level": 5, "count": 1 }, { "level": 8, "count": 2 } ],
+    "tiers": [
+      { "slots": 3 },
+      { "slots": 5, "cost": { "currencies": { "coins": 1200 } }, "unlockLevel": 7 }
+    ]
+  },
+  {
+    "id": "feed_mill", "name": "Feed Mill", "asset": "producer.feed_mill", "category": "building",
+    "width": 2, "height": 2, "cost": { "currencies": { "coins": 150 } }, "unlockLevel": 1,
+    "queueMode": "sequential",
+    "limits": [ { "level": 1, "count": 1 } ],
+    "tiers": [
+      { "slots": 3 },
+      { "slots": 5, "cost": { "currencies": { "coins": 250 } }, "unlockLevel": 2 },
+      { "slots": 7, "durationMultiplier": 0.8, "cost": { "currencies": { "coins": 900 } }, "unlockLevel": 5 }
+    ]
+  },
+  {
+    "id": "dairy", "name": "Dairy", "asset": "producer.dairy", "category": "building",
+    "width": 2, "height": 2, "cost": { "currencies": { "coins": 500 } }, "unlockLevel": 4,
+    "queueMode": "sequential",
+    "limits": [ { "level": 4, "count": 1 } ],
+    "tiers": [
+      { "slots": 3 },
+      { "slots": 5, "cost": { "currencies": { "coins": 900 } }, "unlockLevel": 6 }
+    ]
+  },
+  {
+    "id": "smokehouse", "name": "Smokehouse", "asset": "producer.smokehouse", "category": "building",
+    "width": 2, "height": 2, "cost": { "currencies": { "coins": 1000 } }, "unlockLevel": 6,
+    "queueMode": "sequential",
+    "limits": [ { "level": 6, "count": 1 } ],
+    "tiers": [ { "slots": 3 } ]
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "silo", "name": "Silo", "asset": "storage.silo",
+    "tiers": [
+      { "capacity": 50 },
+      { "capacity": 75, "cost": { "currencies": { "coins": 300 } }, "unlockLevel": 2 },
+      { "capacity": 100, "cost": { "currencies": { "coins": 800 } }, "unlockLevel": 4 },
+      { "capacity": 150, "cost": { "currencies": { "coins": 2000 } }, "unlockLevel": 6 }
+    ]
+  },
+  {
+    "id": "barn", "name": "Barn", "asset": "storage.barn",
+    "tiers": [
+      { "capacity": 50 },
+      { "capacity": 75, "cost": { "currencies": { "coins": 300 } }, "unlockLevel": 2 },
+      { "capacity": 100, "cost": { "currencies": { "coins": 900 } }, "unlockLevel": 4 },
+      { "capacity": 150, "cost": { "currencies": { "coins": 2200 } }, "unlockLevel": 6 }
+    ]
+  }
+]

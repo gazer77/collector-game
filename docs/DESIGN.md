@@ -51,11 +51,11 @@ Collector.slnx
 | `Currency` | Spendable balance | coins, gems |
 | `Item` | Anything that can sit in storage | wheat, milk, flour, cheese |
 | `Storage` | Capacity bucket that items are assigned to, with upgrade tiers | silo (crops), barn (goods) |
-| `Producer` | Placeable thing that runs recipes in slots | field plot, chicken coop, cow pasture, mill, dairy |
+| `Producer` | Placeable thing that runs recipes in slots, either all at once (`parallel`) or as a queue (`sequential`) | field (parallel), chicken coop (parallel), feed mill (sequential), dairy (sequential) |
 | `Recipe` | Inputs → outputs over a duration, plus XP | `plant_wheat`: 1 wheat → 2 wheat, 2 min |
 | `Upgrade` | Tiered modifiers on a producer or storage | +1 slot, ×0.9 duration, +25 capacity |
 | `LandParcel` | Purchasable map region with cost and level gate | parcel_n1 |
-| `Level` | XP thresholds + rewards + unlocks | level 3 unlocks the dairy |
+| `Level` | XP thresholds + currency and item rewards | level 2 grants 3 corn to plant |
 | `OrderBoard` | Generator rules for bundle orders | 3 slots, refresh 15 min |
 | `Market` | Base prices + dynamic price model | elasticity, recovery rate |
 | `Worker` | Automation rule (auto-collect / auto-restart) | farmhand |
@@ -110,6 +110,8 @@ The hybrid loop is RealTime plus workers. It needs no fourth mode.
 4. The server applies the commands against its own state using **server time**, persists it, and returns `{version, stateHash}`. If the hash doesn't match, the client replaces its local state with the server's copy.
 5. A heartbeat (SignalR or periodic POST) keeps the session "active" for the paused-while-away clock.
 
+The client's clock will run slightly ahead of or behind the server's. If a command arrives a moment before the server thinks a job is done (e.g. `Collect`), the server may advance that player's clock by a small tolerance (planned: ≤ 2 s) before applying it. A command that is still invalid after that is rejected, and the client resyncs.
+
 Persistence (MVP): table `Players` (Id, DeviceId, CreatedAt), table `Saves` (PlayerId, PackId, StateJson, Version as a concurrency token). Trading, leaderboards, and guilds get relational tables in later milestones, because they span players.
 
 ## 5. Content packs
@@ -126,7 +128,7 @@ packs/farm/
   land.json
   orders.json
   market.json
-  assets/manifest.json   assetKey → { emoji | svg | png, tint }
+  assets/manifest.json   assetKey → { emoji, image, tint }   (keys by convention: item.wheat, producer.dairy, currency.coins)
 ```
 
 Loading has two passes: JSON-schema validation, then semantic validation. Semantic validation checks that every referenced ID exists, that no recipe can be unlocked before its producer, and so on. It fails with readable errors.
@@ -142,7 +144,7 @@ Loading has two passes: JSON-schema validation, then semantic validation. Semant
 
 | Milestone | Scope |
 |---|---|
-| **M0 — Skeleton** | Solution, pack loader + validation, engine core (state, commands, clock), tests. *Project scaffold done; engine core next.* |
+| **M0 — Skeleton** ✅ | Solution, pack loader + validation, engine core (state, commands, clock), farm pack content, 37 tests. |
 | **M1 — Vertical slice** | Farm pack: 3 crops (wheat, corn, carrots), 2 animals (chickens, cows), 2 processors (mill, dairy). Order board, XP levels, buying land, capped storage + upgrades, coins + gems. Guest auth, SQLite, playable web client. |
 | **M2 — Economy** | Dynamic market prices, player trading (listings), building upgrades beyond tier 1, workers/automation. |
 | **M3 — Social** | Visit neighbors (read-only + help actions), leaderboards, guilds/co-op goals. |

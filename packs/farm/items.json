@@ -1,0 +1,14 @@
+[
+  { "id": "wheat",        "name": "Wheat",        "asset": "item.wheat",        "storage": "silo", "sellPrice": 3,   "unlockLevel": 1, "orderWeight": 3, "tags": ["crop"] },
+  { "id": "corn",         "name": "Corn",         "asset": "item.corn",         "storage": "silo", "sellPrice": 7,   "unlockLevel": 2, "orderWeight": 3, "tags": ["crop"] },
+  { "id": "carrot",       "name": "Carrot",       "asset": "item.carrot",       "storage": "silo", "sellPrice": 10,  "unlockLevel": 3, "orderWeight": 3, "tags": ["crop"] },
+  { "id": "chicken_feed", "name": "Chicken Feed", "asset": "item.chicken_feed", "storage": "barn", "sellPrice": 2,   "unlockLevel": 1, "orderWeight": 0, "tags": ["feed"] },
+  { "id": "cow_feed",     "name": "Cow Feed",     "asset": "item.cow_feed",     "storage": "barn", "sellPrice": 4,   "unlockLevel": 3, "orderWeight": 0, "tags": ["feed"] },
+  { "id": "pig_feed",     "name": "Pig Feed",     "asset": "item.pig_feed",     "storage": "barn", "sellPrice": 6,   "unlockLevel": 5, "orderWeight": 0, "tags": ["feed"] },
+  { "id": "egg",          "name": "Egg",          "asset": "item.egg",          "storage": "barn", "sellPrice": 14,  "unlockLevel": 1, "orderWeight": 3, "tags": ["animal"] },
+  { "id": "milk",         "name": "Milk",         "asset": "item.milk",         "storage": "barn", "sellPrice": 30,  "unlockLevel": 3, "orderWeight": 3, "tags": ["dairy"] },
+  { "id": "pork",         "name": "Pork",         "asset": "item.pork",         "storage": "barn", "sellPrice": 55,  "unlockLevel": 5, "orderWeight": 2, "tags": ["meat"] },
+  { "id": "cream",        "name": "Cream",        "asset": "item.cream",        "storage": "barn", "sellPrice": 80,  "unlockLevel": 4, "orderWeight": 2, "tags": ["dairy", "processed"] },
+  { "id": "cheese",       "name": "Cheese",       "asset": "item.cheese",       "storage": "barn", "sellPrice": 130, "unlockLevel": 5, "orderWeight": 2, "tags": ["dairy", "processed"] },
+  { "id": "bacon",        "name": "Bacon",        "asset": "item.bacon",        "storage": "barn", "sellPrice": 160, "unlockLevel": 6, "orderWeight": 2, "tags": ["meat", "processed"] }
+]
