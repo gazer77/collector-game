@@ -50,7 +50,15 @@
                     <nav class="tabs" role="tablist">
                         @foreach (var (tab, label) in Tabs)
                         {
-                            <button role="tab" class="tab @(tab == _tab ? "is-active" : "")" aria-selected="@(tab == _tab)" @onclick="() => _tab = tab">@label</button>
+                            var badge = tab == Tab.Orders ? FillableOrders(state) : 0;
+                            <button role="tab" class="tab @(tab == _tab ? "is-active" : "")" aria-selected="@(tab == _tab)" @onclick="() => _tab = tab">
+                                @label
+                                @if (badge > 0)
+                                {
+                                    <span class="tab-badge" aria-hidden="true">@badge</span>
+                                    <span class="visually-hidden">, @badge ready to deliver</span>
+                                }
+                            </button>
                         }
                     </nav>
                     <div class="sheet-body">
@@ -93,6 +101,9 @@
     }
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private static int FillableOrders(PlayerState state) =>
+        state.Orders.Count(slot => slot.Order is { } order && order.Items.All(kv => state.Count(kv.Key) >= kv.Value));
 
     private void TapPlacement(int placementId)
     {

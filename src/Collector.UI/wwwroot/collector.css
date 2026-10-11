@@ -420,6 +420,7 @@ button { font: inherit; color: inherit; }
 
 .tab {
     flex: 1;
+    white-space: nowrap;
     padding: 0.625rem 0.5rem;
     border: 0;
     border-bottom: 3px solid transparent;
@@ -434,6 +435,22 @@ button { font: inherit; color: inherit; }
 .tab.is-active {
     color: var(--text);
     border-bottom-color: var(--barn);
+}
+
+.tab-badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.375rem;
+    height: 1.375rem;
+    padding: 0 0.3rem;
+    margin-left: 0.25rem;
+    border-radius: 999px;
+    background: var(--straw);
+    color: var(--hedge);
+    font-size: var(--step--1);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    vertical-align: 0.15em;
 }
 
 .sheet-body, .sheet > .panel {
