@@ -610,6 +610,7 @@ button { font: inherit; color: inherit; }
 }
 
 .is-locked { opacity: 0.55; }
+.stock-row.is-sold-out { opacity: 0.55; }
 
 .locked-note {
     font-size: var(--step--1);
