@@ -1,41 +1,73 @@
+using Collector.Engine.Serialization;
+using Collector.Server;
+using Collector.Server.Auth;
+using Collector.Server.Data;
+using Collector.Server.Game;
+using Collector.Server.Packs;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.Configure<CollectorOptions>(builder.Configuration.GetSection(CollectorOptions.Section));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<PackRegistry>();
+builder.Services.AddSingleton<PlayerLocks>();
+builder.Services.AddSingleton<SigningKeyStore>();
+builder.Services.AddSingleton<TokenService>();
+builder.Services.AddScoped<GameService>();
+
+builder.Services.AddDbContext<CollectorDb>((services, db) =>
+{
+    var dataDir = DataPaths.Resolve(services.GetRequiredService<IOptions<CollectorOptions>>().Value, builder.Environment);
+    db.UseSqlite($"Data Source={Path.Combine(dataDir, "collector.db")}");
+});
+
+builder.Services.ConfigureHttpJsonOptions(o => EngineJson.ApplyTo(o.SerializerOptions));
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<SigningKeyStore>((jwt, keys) =>
+    {
+        jwt.MapInboundClaims = false;
+        jwt.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = TokenService.Issuer,
+            ValidAudience = TokenService.Audience,
+            IssuerSigningKey = keys.Key,
+        };
+    });
+builder.Services.AddAuthorization();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Fail fast on a broken pack, and create the database on first run.
+var packs = app.Services.GetRequiredService<PackRegistry>();
+using (var scope = app.Services.CreateScope())
+    scope.ServiceProvider.GetRequiredService<CollectorDb>().Database.EnsureCreated();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseWebAssemblyDebugging();
 }
 
-app.UseHttpsRedirection();
+// The Blazor WebAssembly client is served from the same origin, so no CORS is needed.
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+// Pack art (assets/...) is served from the packs folder.
+app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(packs.Root), RequestPath = "/packs" });
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+app.MapCollectorApi();
+app.MapFallbackToFile("index.html");
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public partial class Program;
