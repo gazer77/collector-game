@@ -36,7 +36,6 @@
                          SelectedId="_selected"
                          PlacingProducer="@(_placing ?? MovingProducer)"
                          OnTapPlacement="TapPlacement"
-                         OnHoverPlacement="id => _hovered = id"
                          OnTapCell="TapCell" />
             </main>
 
@@ -88,7 +87,6 @@
     private int? _selected;
     private string? _placing;
     private int? _moving;
-    private int? _hovered;
     private DotNetObjectReference<GameApp>? _self;
     private IJSObjectReference? _hotkeys;
 
@@ -170,8 +168,7 @@
         switch (key)
         {
             case "r":
-                // The selected field comes first; once it is growing, the field under the pointer is next.
-                Session.Replant(_selected, _hovered);
+                Session.Replant(_selected);
                 break;
         }
     }

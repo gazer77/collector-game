@@ -344,6 +344,25 @@ button { font: inherit; color: inherit; }
     box-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
 }
 
+/* Empty slots: an open, dashed tag so it reads as "room here" next to the solid ready badge. */
+.free-count {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    height: 1.25rem;
+    padding: 0 0.375rem;
+    border-radius: 999px;
+    border: 1.5px dashed var(--hedge);
+    background: rgb(255 255 255 / 0.85);
+    color: var(--hedge);
+    font-weight: 700;
+    font-size: 0.6875rem;
+    line-height: 1;
+    white-space: nowrap;
+    display: grid;
+    place-items: center;
+}
+
 .progress {
     position: absolute;
     left: 9px;

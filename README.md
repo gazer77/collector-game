@@ -18,7 +18,7 @@ dotnet run --project src/Collector.Server --launch-profile http
 
 Then open http://localhost:5128. The server serves the web client, the API and the pack files. On first run it creates `src/Collector.Server/App_Data/` with the SQLite database and a token signing key.
 
-Press **R** to replant a field with the crop it last grew (or your most recent crop, for a field that has none yet): the selected field, or once that is growing the field under the pointer; with neither, the first empty field.
+Press **R** to replant a field with the crop it last grew (or your most recent crop, for a field that has none yet): the selected field if it is empty, otherwise the next empty field in reading order. Buildings and pens show how many free slots they have.
 
 Each browser gets its own guest farm (a device id kept in localStorage). The game clock only runs while the page is open.
 

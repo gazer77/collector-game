@@ -39,19 +39,22 @@
             var ready = placement.Jobs.Count(j => j.IsReady(now));
             var running = placement.Jobs.FirstOrDefault(j => !j.IsReady(now) && j.StartsAt <= now);
             var isField = producer.Category == "field";
+            var free = Session.Engine.TierOf(placement).Slots - placement.Jobs.Count;
             var glyph = isField && placement.Jobs.Count > 0
                 ? defs.Emoji(defs.Items[defs.Recipes[placement.Jobs[0].Recipe].Outputs.Keys.First()].Asset)
                 : defs.Emoji(producer.Asset);
             <button class="placement cat-@producer.Category @(ready > 0 ? "is-ready" : "") @(placement.Id == SelectedId ? "is-selected" : "") @(isField && placement.Jobs.Count == 0 ? "is-idle" : "")"
                     style="@Rect(placement.X, placement.Y, producer.Width, producer.Height);--tint:@(defs.Tint(producer.Asset) ?? "#9a8a6a")"
-                    aria-label="@Label(producer, placement, ready, running)"
-                    @onclick="() => OnTapPlacement.InvokeAsync(placement.Id)"
-                    @onmouseenter="() => OnHoverPlacement.InvokeAsync(placement.Id)"
-                    @onmouseleave="() => OnHoverPlacement.InvokeAsync(null)">
+                    aria-label="@Label(producer, placement, ready, running, free)"
+                    @onclick="() => OnTapPlacement.InvokeAsync(placement.Id)">
                 <span class="glyph @(isField && running is not null ? "is-growing" : "")" aria-hidden="true">@glyph</span>
                 @if (ready > 0 && !isField)
                 {
                     <span class="ready-count" aria-hidden="true">@ready</span>
+                }
+                @if (free > 0 && !isField)
+                {
+                    <span class="free-count" aria-hidden="true">@free free</span>
                 }
                 @if (running is not null)
                 {
@@ -81,7 +84,6 @@
     [Parameter] public int? SelectedId { get; set; }
     [Parameter] public string? PlacingProducer { get; set; }
     [Parameter] public EventCallback<int> OnTapPlacement { get; set; }
-    [Parameter] public EventCallback<int?> OnHoverPlacement { get; set; }
     [Parameter] public EventCallback<(int X, int Y)> OnTapCell { get; set; }
 
     private (int X, int Y)? _hover;
@@ -99,12 +101,11 @@
         Math.Clamp(100.0 * (now - job.StartsAt) / Math.Max(1, job.EndsAt - job.StartsAt), 0, 100)
             .ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
 
-    private string Label(ProducerDefinition producer, Placement placement, int ready, Job? running)
+    private string Label(ProducerDefinition producer, Placement placement, int ready, Job? running, int free)
     {
-        if (ready > 0)
-            return $"{producer.Name}: {ready} ready to collect";
-        if (running is not null)
-            return $"{producer.Name}: {Session.Definitions.Recipes[running.Recipe].Name}, {Display.Duration(running.EndsAt - State.Time)} left";
-        return placement.Jobs.Count > 0 ? $"{producer.Name}: queued" : $"{producer.Name}: idle";
+        var status = ready > 0 ? $"{ready} ready to collect"
+            : running is not null ? $"{Session.Definitions.Recipes[running.Recipe].Name}, {Display.Duration(running.EndsAt - State.Time)} left"
+            : placement.Jobs.Count > 0 ? "queued" : "idle";
+        return free > 0 && placement.Jobs.Count > 0 ? $"{producer.Name}: {status}, {free} free" : $"{producer.Name}: {status}";
     }
 }
