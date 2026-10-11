@@ -85,7 +85,7 @@
                 }
                 else
                 {
-                    <button class="btn" disabled="@(missing || freeSlots <= 0)" title="@(producer.Category == "field" ? "Press R to plant your last crop again" : null)" @onclick="() => Session.Do(new StartRecipe(placement.Id, recipe.Id))">
+                    <button class="btn" disabled="@(missing || freeSlots <= 0)" title="@(producer.Category == "field" ? "Press R over a field to plant its last crop again" : null)" @onclick="() => Session.Do(new StartRecipe(placement.Id, recipe.Id))">
                         @(producer.Category == "field" ? "Plant" : "Start")
                     </button>
                 }

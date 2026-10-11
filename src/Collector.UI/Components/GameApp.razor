@@ -36,6 +36,7 @@
                          SelectedId="_selected"
                          PlacingProducer="@(_placing ?? MovingProducer)"
                          OnTapPlacement="TapPlacement"
+                         OnHoverPlacement="id => _hovered = id"
                          OnTapCell="TapCell" />
             </main>
 
@@ -78,6 +79,7 @@
     private int? _selected;
     private string? _placing;
     private int? _moving;
+    private int? _hovered;
     private DotNetObjectReference<GameApp>? _self;
     private IJSObjectReference? _hotkeys;
 
@@ -156,7 +158,8 @@
         switch (key)
         {
             case "r":
-                Session.Replant(_selected);
+                // The field under the pointer wins, so you can sweep across fields pressing R.
+                Session.Replant(_hovered ?? _selected);
                 break;
         }
     }

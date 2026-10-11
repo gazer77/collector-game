@@ -43,6 +43,23 @@ public class GameEngineTests
     }
 
     [Fact]
+    public void Each_placement_remembers_its_last_recipe_after_collection()
+    {
+        var state = NewGame();
+        var field = state.First("field");
+        Assert.Null(field.LastRecipe);
+
+        Ok(state, new StartRecipe(field.Id, "grow_wheat"));
+        _engine.AdvanceTime(state, 120 * Second);
+        Ok(state, new Collect(field.Id));
+
+        Assert.Empty(field.Jobs);
+        Assert.Equal("grow_wheat", field.LastRecipe);
+        Assert.All(state.Placements.Where(p => p.Id != field.Id), p => Assert.Null(p.LastRecipe));
+        Assert.Equal("grow_wheat", StateHasher.Clone(state).FindPlacement(field.Id)!.LastRecipe);
+    }
+
+    [Fact]
     public void Planting_consumes_seed_and_harvest_waits_for_the_timer()
     {
         var state = NewGame();

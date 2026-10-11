@@ -45,7 +45,9 @@
             <button class="placement cat-@producer.Category @(ready > 0 ? "is-ready" : "") @(placement.Id == SelectedId ? "is-selected" : "") @(isField && placement.Jobs.Count == 0 ? "is-idle" : "")"
                     style="@Rect(placement.X, placement.Y, producer.Width, producer.Height);--tint:@(defs.Tint(producer.Asset) ?? "#9a8a6a")"
                     aria-label="@Label(producer, placement, ready, running)"
-                    @onclick="() => OnTapPlacement.InvokeAsync(placement.Id)">
+                    @onclick="() => OnTapPlacement.InvokeAsync(placement.Id)"
+                    @onmouseenter="() => OnHoverPlacement.InvokeAsync(placement.Id)"
+                    @onmouseleave="() => OnHoverPlacement.InvokeAsync(null)">
                 <span class="glyph @(isField && running is not null ? "is-growing" : "")" aria-hidden="true">@glyph</span>
                 @if (ready > 0 && !isField)
                 {
@@ -79,6 +81,7 @@
     [Parameter] public int? SelectedId { get; set; }
     [Parameter] public string? PlacingProducer { get; set; }
     [Parameter] public EventCallback<int> OnTapPlacement { get; set; }
+    [Parameter] public EventCallback<int?> OnHoverPlacement { get; set; }
     [Parameter] public EventCallback<(int X, int Y)> OnTapCell { get; set; }
 
     private (int X, int Y)? _hover;

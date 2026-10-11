@@ -45,9 +45,6 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
 
     public bool IsOffline => _offline;
 
-    /// <summary>The recipe most recently started on a field this session, for <see cref="Replant"/>.</summary>
-    public string? LastCrop { get; private set; }
-
     /// <summary>Raised whenever <see cref="State"/> changes, including once per second as the clock ticks.</summary>
     public event Action? Changed;
     public event Action<Toast>? Toasted;
@@ -85,9 +82,6 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
             return result;
         }
 
-        if (command is StartRecipe start && IsField(State.FindPlacement(start.PlacementId)))
-            LastCrop = start.Recipe;
-
         _pending.Add(new CommandEnvelope(_nextSeq++, command));
         AnnounceEvents(result.Events);
         Changed?.Invoke();
@@ -96,25 +90,39 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
     }
 
     /// <summary>
-    /// Plants <see cref="LastCrop"/> again: on <paramref name="preferredPlacementId"/> if it's a field with room,
-    /// otherwise on the first field with a free slot. Returns the field it planted on.
+    /// Plants a field's own last crop again. If <paramref name="fieldId"/> names a field, that field is replanted
+    /// (or the reason it can't be is shown); otherwise the first free field that has grown something before is.
+    /// Returns the field it planted on.
     /// </summary>
-    public int? Replant(int? preferredPlacementId)
+    public int? Replant(int? fieldId)
     {
-        if (LastCrop is not { } recipe)
+        Placement? target;
+        if (State.FindPlacement(fieldId ?? -1) is { } chosen && IsField(chosen))
         {
-            Toasted?.Invoke(new Toast("Plant a crop first, then press R to plant it again."));
-            return null;
+            target = chosen;
+            if (target.LastRecipe is null)
+            {
+                Toasted?.Invoke(new Toast("Nothing has grown here yet. Plant a crop first, then R will repeat it."));
+                return null;
+            }
+            if (target.Jobs.Count >= Engine.TierOf(target).Slots)
+            {
+                Toasted?.Invoke(new Toast("This field is already growing something.", IsError: true));
+                return null;
+            }
         }
-
-        var open = State.Placements.Where(p => IsField(p) && p.Jobs.Count < Engine.TierOf(p).Slots).ToList();
-        var target = open.Find(p => p.Id == preferredPlacementId) ?? open.FirstOrDefault();
-        if (target is null)
+        else
         {
-            Toasted?.Invoke(new Toast("Every field is already growing something.", IsError: true));
-            return null;
+            target = State.Placements.Find(p => IsField(p) && p.LastRecipe is not null && p.Jobs.Count < Engine.TierOf(p).Slots);
+            if (target is null)
+            {
+                Toasted?.Invoke(new Toast(State.Placements.Any(p => IsField(p) && p.LastRecipe is not null)
+                    ? "Every field you've planted before is growing something."
+                    : "Plant a crop first, then press R to plant it again."));
+                return null;
+            }
         }
-        return Do(new StartRecipe(target.Id, recipe)).Ok ? target.Id : null;
+        return Do(new StartRecipe(target.Id, target.LastRecipe!)).Ok ? target.Id : null;
     }
 
     private bool IsField(Placement? placement) =>

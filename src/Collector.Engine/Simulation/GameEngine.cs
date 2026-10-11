@@ -153,6 +153,7 @@ public sealed class GameEngine(GameDefinitions definitions)
             ? Math.Max(state.Time, placement.Jobs[^1].EndsAt)
             : state.Time;
         placement.Jobs.Add(new Job { Recipe = recipe.Id, StartsAt = startsAt, EndsAt = startsAt + duration });
+        placement.LastRecipe = recipe.Id;
         return null;
     }
 

@@ -45,6 +45,9 @@ public sealed class Placement
 
     /// <summary>Running and finished-but-uncollected jobs, in queue order.</summary>
     public List<Job> Jobs { get; set; } = [];
+
+    /// <summary>The recipe most recently started here, kept after collection so it can be repeated.</summary>
+    public string? LastRecipe { get; set; }
 }
 
 public sealed class Job
