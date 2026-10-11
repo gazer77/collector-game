@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Collector.Contracts/Collector.Contracts.csproj" />
+    <Project Path="src/Collector.Engine/Collector.Engine.csproj" />
+    <Project Path="src/Collector.Server/Collector.Server.csproj" />
+    <Project Path="src/Collector.UI/Collector.UI.csproj" />
+    <Project Path="src/Collector.Web/Collector.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Collector.Engine.Tests/Collector.Engine.Tests.csproj" />
+  </Folder>
+</Solution>
