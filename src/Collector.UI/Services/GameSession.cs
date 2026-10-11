@@ -45,6 +45,9 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
 
     public bool IsOffline => _offline;
 
+    /// <summary>The recipe most recently started on a field this session, for <see cref="Replant"/>.</summary>
+    public string? LastCrop { get; private set; }
+
     /// <summary>Raised whenever <see cref="State"/> changes, including once per second as the clock ticks.</summary>
     public event Action? Changed;
     public event Action<Toast>? Toasted;
@@ -82,12 +85,40 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
             return result;
         }
 
+        if (command is StartRecipe start && IsField(State.FindPlacement(start.PlacementId)))
+            LastCrop = start.Recipe;
+
         _pending.Add(new CommandEnvelope(_nextSeq++, command));
         AnnounceEvents(result.Events);
         Changed?.Invoke();
         _ = FlushAsync();
         return result;
     }
+
+    /// <summary>
+    /// Plants <see cref="LastCrop"/> again: on <paramref name="preferredPlacementId"/> if it's a field with room,
+    /// otherwise on the first field with a free slot. Returns the field it planted on.
+    /// </summary>
+    public int? Replant(int? preferredPlacementId)
+    {
+        if (LastCrop is not { } recipe)
+        {
+            Toasted?.Invoke(new Toast("Plant a crop first, then press R to plant it again."));
+            return null;
+        }
+
+        var open = State.Placements.Where(p => IsField(p) && p.Jobs.Count < Engine.TierOf(p).Slots).ToList();
+        var target = open.Find(p => p.Id == preferredPlacementId) ?? open.FirstOrDefault();
+        if (target is null)
+        {
+            Toasted?.Invoke(new Toast("Every field is already growing something.", IsError: true));
+            return null;
+        }
+        return Do(new StartRecipe(target.Id, recipe)).Ok ? target.Id : null;
+    }
+
+    private bool IsField(Placement? placement) =>
+        placement is not null && Definitions.Producers[placement.Producer].Category == "field";
 
     private async Task LoginAsync()
     {

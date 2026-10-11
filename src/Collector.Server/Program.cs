@@ -56,9 +56,6 @@ if (app.Environment.IsDevelopment())
     app.UseWebAssemblyDebugging();
 }
 
-// The Blazor WebAssembly client is served from the same origin, so no CORS is needed.
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
 // Pack art (assets/...) is served from the packs folder.
 app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(packs.Root), RequestPath = "/packs" });
 
@@ -66,6 +63,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapCollectorApi();
+// The Blazor WebAssembly client is served from the same origin, so no CORS is needed. Static assets
+// are served by their plain and fingerprinted names (the client's import map points at the latter).
+app.MapStaticAssets();
 app.MapFallbackToFile("index.html");
 
 app.Run();

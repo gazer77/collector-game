@@ -1,5 +1,6 @@
-@implements IDisposable
+@implements IAsyncDisposable
 @inject GameSession Session
+@inject IJSRuntime JS
 @inject NavigationManager Navigation
 
 @switch (Session.Status)
@@ -77,6 +78,8 @@
     private int? _selected;
     private string? _placing;
     private int? _moving;
+    private DotNetObjectReference<GameApp>? _self;
+    private IJSObjectReference? _hotkeys;
 
     private string? MovingProducer => _moving is { } id ? Session.State.FindPlacement(id)?.Producer : null;
 
@@ -135,5 +138,41 @@
 
     private void Reload() => Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
 
-    public void Dispose() => Session.Changed -= OnChanged;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+        _self = DotNetObjectReference.Create(this);
+        var module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Collector.UI/hotkeys.js");
+        _hotkeys = await module.InvokeAsync<IJSObjectReference>("register", _self);
+        await module.DisposeAsync();
+    }
+
+    [JSInvokable]
+    public void OnHotkey(string key)
+    {
+        if (Session.Status != SessionStatus.Ready)
+            return;
+        switch (key)
+        {
+            case "r":
+                Session.Replant(_selected);
+                break;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Session.Changed -= OnChanged;
+        try
+        {
+            if (_hotkeys is not null)
+            {
+                await _hotkeys.InvokeVoidAsync("dispose");
+                await _hotkeys.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException) { }
+        _self?.Dispose();
+    }
 }
