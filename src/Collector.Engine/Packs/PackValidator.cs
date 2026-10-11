@@ -221,6 +221,28 @@ public static class PackValidator
             Error("market.json", $"sellCurrency '{market.SellCurrency}' is not a currency.");
         if (pack.Market is null && pack.Items.Any(i => i.SellPrice > 0))
             Error("market.json", "Items have sell prices but the pack has no market.json.");
+        if (pack.Market is { } m)
+        {
+            var buyCurrency = m.BuyCurrency ?? m.SellCurrency;
+            if (!currencyIds.Contains(buyCurrency))
+                Error("market.json", $"buyCurrency '{buyCurrency}' is not a currency.");
+            if (m.BuyMultiplier < 0)
+                Error("market.json", "buyMultiplier can't be negative.");
+            foreach (var item in pack.Items)
+            {
+                if (item.BuyPrice < -1)
+                    Error("items.json", $"Item '{item.Id}' buyPrice must be -1 (not for sale), 0 (use buyMultiplier) or positive.");
+                var buy = item.BuyPrice > 0 ? item.BuyPrice
+                    : item.BuyPrice == 0 && m.BuyMultiplier > 0 ? (long)Math.Ceiling(item.SellPrice * m.BuyMultiplier) : 0;
+                if (buy <= 0)
+                    continue;
+                // Buying must never pay: not by selling straight back, and not by filling orders with bought goods.
+                if (buyCurrency == m.SellCurrency && buy < item.SellPrice)
+                    Error("items.json", $"Item '{item.Id}' buys for {buy} but sells for {item.SellPrice}.");
+                if (pack.Orders is { } o && o.RewardCurrency == buyCurrency && buy <= item.SellPrice * o.RewardMultiplier)
+                    Error("items.json", $"Item '{item.Id}' buys for {buy}, which orders out-pay ({item.SellPrice} × {o.RewardMultiplier}).");
+            }
+        }
 
         return errors;
     }

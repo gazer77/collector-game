@@ -58,6 +58,7 @@
                         {
                             case Tab.Orders: <OrdersPanel State="state" />break;
                             case Tab.Storage: <StoragePanel State="state" />break;
+                            case Tab.Market: <MarketPanel State="state" />break;
                             case Tab.Shop: <ShopPanel State="state" OnBuild="StartPlacing" />break;
                         }
                     </div>
@@ -72,8 +73,8 @@
 @code {
     [Parameter, EditorRequired] public string PackId { get; set; } = "";
 
-    private enum Tab { Orders, Storage, Shop }
-    private static readonly (Tab, string)[] Tabs = [(Tab.Orders, "Orders"), (Tab.Storage, "Storage"), (Tab.Shop, "Build")];
+    private enum Tab { Orders, Storage, Market, Shop }
+    private static readonly (Tab, string)[] Tabs = [(Tab.Orders, "Orders"), (Tab.Storage, "Storage"), (Tab.Market, "Market"), (Tab.Shop, "Build")];
 
     private Tab _tab = Tab.Orders;
     private int? _selected;

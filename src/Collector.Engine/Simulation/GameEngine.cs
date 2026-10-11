@@ -46,6 +46,7 @@ public sealed class GameEngine(GameDefinitions definitions)
             UpgradeStorage c => Upgrade(state, c),
             BuyParcel c => Buy(state, c),
             SellItem c => Sell(state, c),
+            BuyItem c => Buy(state, c),
             FillOrder c => Fill(state, c, events),
             DiscardOrder c => Discard(state, c, events),
             EndTurn => Turn(state, events),
@@ -302,6 +303,40 @@ public sealed class GameEngine(GameDefinitions definitions)
         RemoveItems(state, toSell);
         Credit(state, market.SellCurrency, item.SellPrice * c.Quantity);
         return null;
+    }
+
+    private CommandResult? Buy(PlayerState state, BuyItem c)
+    {
+        if (!Definitions.Items.TryGetValue(c.Item, out var item))
+            return Unknown("item", c.Item);
+        if (BuyPrice(item) is not { } price)
+            return CommandResult.Fail(ErrorCode.InvalidCommand, $"{item.Name} can't be bought.");
+        if (state.Level < item.UnlockLevel)
+            return Locked(item.Name, item.UnlockLevel);
+        if (c.Quantity <= 0)
+            return CommandResult.Fail(ErrorCode.InvalidCommand, "Quantity must be positive.");
+        var currency = Definitions.Market!.BuyCurrency ?? Definitions.Market.SellCurrency;
+        if (state.Balance(currency) < price * c.Quantity)
+            return CannotAfford(currency);
+        var toBuy = new Dictionary<string, int> { [item.Id] = c.Quantity };
+        if (!Fits(state, toBuy))
+            return CommandResult.Fail(ErrorCode.StorageFull, $"Not enough room in your {Definitions.Storage[item.Storage].Name}.");
+
+        state.Wallet[currency] -= price * c.Quantity;
+        AddItems(state, toBuy);
+        return null;
+    }
+
+    /// <summary>What one of <paramref name="item"/> costs to buy from the market, or null if it can't be bought.</summary>
+    public long? BuyPrice(ItemDefinition item)
+    {
+        if (Definitions.Market is not { } market || item.BuyPrice < 0)
+            return null;
+        if (item.BuyPrice > 0)
+            return item.BuyPrice;
+        if (market.BuyMultiplier <= 0 || item.SellPrice <= 0)
+            return null;
+        return (long)Math.Ceiling(item.SellPrice * market.BuyMultiplier);
     }
 
     private CommandResult? Fill(PlayerState state, FillOrder c, List<GameEvent> events)

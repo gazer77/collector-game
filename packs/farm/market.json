@@ -1,3 +1,4 @@
 {
-  "sellCurrency": "coins"
+  "sellCurrency": "coins",
+  "buyMultiplier": 2.5
 }

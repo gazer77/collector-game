@@ -29,6 +29,9 @@ public sealed record ItemDefinition
 
     /// <summary>Base market price. Zero means the item can't be sold directly.</summary>
     public long SellPrice { get; init; }
+
+    /// <summary>Market buy price, overriding the market's buyMultiplier. Zero means use the multiplier; -1 means it can't be bought.</summary>
+    public long BuyPrice { get; init; }
     public int UnlockLevel { get; init; } = 1;
 
     /// <summary>Relative chance of appearing in generated orders. Zero excludes it.</summary>
@@ -171,4 +174,13 @@ public sealed record OrderBonusDefinition
 public sealed record MarketDefinition
 {
     public required string SellCurrency { get; init; }
+
+    /// <summary>Currency for buying from the market. Defaults to <see cref="SellCurrency"/>.</summary>
+    public string? BuyCurrency { get; init; }
+
+    /// <summary>
+    /// Buy price relative to an item's sell price, rounded up. Zero turns buying off. Keep it above the orders
+    /// reward multiplier, or buying goods to fill orders makes money (the validator enforces this).
+    /// </summary>
+    public double BuyMultiplier { get; init; }
 }

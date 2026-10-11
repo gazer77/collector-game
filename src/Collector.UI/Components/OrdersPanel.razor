@@ -22,6 +22,7 @@
                     continue;
                 }
                 var canFill = order.Items.All(kv => State.Count(kv.Key) >= kv.Value);
+                var buyCost = canFill ? null : Session.CostOfMissing(order.Items);
                 <li class="order @(canFill ? "is-fillable" : "")">
                     <div class="order-items">
                         @foreach (var (item, qty) in order.Items)
@@ -41,7 +42,17 @@
                         <span class="xp">+@order.Xp XP</span>
                     </div>
                     <div class="order-actions">
-                        <button class="btn btn-primary" disabled="@(!canFill)" @onclick="() => Session.Do(new FillOrder(slot))">Deliver</button>
+                        @if (buyCost is { } cost && Session.BuyCurrency is { } buyCurrency)
+                        {
+                            <button class="btn" disabled="@(State.Balance(buyCurrency.Id) < cost)" @onclick="() => Session.BuyMissing(order.Items)"
+                                    title="Buy what's missing from the market, then deliver">
+                                Buy missing <span class="cost"><span aria-hidden="true">@defs.Emoji(buyCurrency.Asset)</span>@cost.ToString("N0")</span>
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-primary" disabled="@(!canFill)" @onclick="() => Session.Do(new FillOrder(slot))">Deliver</button>
+                        }
                         <button class="btn btn-quiet" @onclick="() => Session.Do(new DiscardOrder(slot))" title="A new order arrives after @Display.Duration(defs.Orders.DiscardCooldownSeconds * 1000)">Skip</button>
                     </div>
                 </li>

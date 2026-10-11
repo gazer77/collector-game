@@ -1,0 +1,58 @@
+@inject GameSession Session
+
+@{
+    var defs = Session.Definitions;
+    var engine = Session.Engine;
+    var currency = Session.BuyCurrency;
+    var forSale = defs.Content.Items.Where(i => engine.BuyPrice(i) is not null).OrderBy(i => i.UnlockLevel).ToList();
+}
+<section class="panel" aria-label="Market">
+    @if (currency is null || forSale.Count == 0)
+    {
+        <p class="empty">Nothing is for sale here.</p>
+    }
+    else
+    {
+        <p class="panel-intro">Short of seed or an order's goods? Buy them here. It costs more than growing your own.</p>
+        <ul class="shop">
+            @foreach (var item in forSale)
+            {
+                var price = engine.BuyPrice(item)!.Value;
+                var locked = State.Level < item.UnlockLevel;
+                var balance = State.Balance(currency.Id);
+                <li class="shop-row @(locked ? "is-locked" : "")">
+                    <span class="stock-glyph" aria-hidden="true">@defs.Emoji(item.Asset)</span>
+                    <div class="shop-body">
+                        <span class="shop-name">@item.Name</span>
+                        <span class="shop-detail">You have @State.Count(item.Id)</span>
+                    </div>
+                    @if (locked)
+                    {
+                        <span class="locked-note">Level @item.UnlockLevel</span>
+                    }
+                    else
+                    {
+                        <div class="buy-actions">
+                            @foreach (var qty in BuyAmounts)
+                            {
+                                var amount = qty;
+                                <button class="btn btn-small" disabled="@(balance < price * amount)"
+                                        @onclick="() => Session.Do(new BuyItem(item.Id, amount))"
+                                        title="Buy @amount @item.Name for @((price * amount).ToString("N0")) @currency.Name">
+                                    @(amount == 1 ? "Buy" : $"×{amount}")
+                                    <span class="cost"><span aria-hidden="true">@defs.Emoji(currency.Asset)</span>@((price * amount).ToString("N0"))</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private static readonly int[] BuyAmounts = [1, 5];
+
+    [Parameter, EditorRequired] public PlayerState State { get; set; } = null!;
+}

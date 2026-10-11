@@ -344,6 +344,26 @@ public class GameEngineTests
     }
 
     [Fact]
+    public void Buying_from_the_market_checks_level_wallet_and_storage()
+    {
+        var state = NewGame();
+        var coins = state.Balance("coins");
+        var wheat = state.Count("wheat");
+        Assert.Equal(8, _engine.BuyPrice(TestPacks.Farm.Items["wheat"])); // sells for 3, x2.5 rounded up
+
+        Ok(state, new BuyItem("wheat", 2));
+        Assert.Equal(coins - 16, state.Balance("coins"));
+        Assert.Equal(wheat + 2, state.Count("wheat"));
+
+        Fails(state, new BuyItem("carrot", 1), ErrorCode.Locked);        // carrots unlock at level 3
+        Fails(state, new BuyItem("wheat", 0), ErrorCode.InvalidCommand);
+        Fails(state, new BuyItem("wheat", 30), ErrorCode.CannotAfford);
+        state.Wallet["coins"] = 10_000;
+        Fails(state, new BuyItem("wheat", 50), ErrorCode.StorageFull);   // silo holds 50
+        Assert.Equal(10_000, state.Balance("coins"));
+    }
+
+    [Fact]
     public void Filling_an_order_pays_out_and_a_new_order_arrives_after_the_delay()
     {
         var state = NewGame();

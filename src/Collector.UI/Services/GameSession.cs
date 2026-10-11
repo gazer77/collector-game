@@ -122,6 +122,46 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
         return Do(new StartRecipe(target.Id, target.LastRecipe ?? latest)).Ok ? target.Id : null;
     }
 
+    /// <summary>The market's buy currency, or null if this game can't buy goods.</summary>
+    public CurrencyDefinition? BuyCurrency =>
+        Definitions.Market is { } market ? Definitions.Currencies[market.BuyCurrency ?? market.SellCurrency] : null;
+
+    /// <summary>What it costs to buy whatever is short of <paramref name="needs"/>; null if any of it can't be bought yet.</summary>
+    public long? CostOfMissing(IReadOnlyDictionary<string, int> needs)
+    {
+        long total = 0;
+        foreach (var (id, qty) in needs)
+        {
+            var shortBy = qty - State.Count(id);
+            if (shortBy <= 0)
+                continue;
+            var item = Definitions.Items[id];
+            if (State.Level < item.UnlockLevel || Engine.BuyPrice(item) is not { } price)
+                return null;
+            total += price * shortBy;
+        }
+        return total;
+    }
+
+    /// <summary>Buys whatever is short of <paramref name="needs"/>. Returns true if nothing is short afterwards.</summary>
+    public bool BuyMissing(IReadOnlyDictionary<string, int> needs)
+    {
+        if (CostOfMissing(needs) is not { } cost || BuyCurrency is not { } currency)
+            return false;
+        if (State.Balance(currency.Id) < cost)
+        {
+            Toasted?.Invoke(new Toast($"That costs {cost:N0} {currency.Name}; you have {State.Balance(currency.Id):N0}.", IsError: true));
+            return false;
+        }
+        foreach (var (id, qty) in needs.ToList())
+        {
+            var shortBy = qty - State.Count(id);
+            if (shortBy > 0 && !Do(new BuyItem(id, shortBy)).Ok)
+                return false;
+        }
+        return true;
+    }
+
     private bool IsField(Placement? placement) =>
         placement is not null && Definitions.Producers[placement.Producer].Category == "field";
 

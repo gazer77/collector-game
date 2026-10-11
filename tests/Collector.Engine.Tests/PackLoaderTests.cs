@@ -40,6 +40,17 @@ public class PackLoaderTests
     }
 
     [Fact]
+    public async Task Buy_prices_that_orders_out_pay_are_rejected()
+    {
+        var files = TestPacks.FarmFiles();
+        files["market.json"] = """{ "sellCurrency": "coins", "buyMultiplier": 1.5 }"""; // orders pay 1.6x
+
+        var ex = await Assert.ThrowsAsync<PackValidationException>(() => TestPacks.LoadAsync(files));
+
+        Assert.Contains(ex.Errors, e => e.StartsWith("items.json") && e.Contains("orders out-pay"));
+    }
+
+    [Fact]
     public async Task Malformed_json_is_reported_with_file_name()
     {
         var files = TestPacks.FarmFiles();

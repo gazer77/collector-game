@@ -84,6 +84,13 @@
                 {
                     <span class="locked-note">Level @recipe.UnlockLevel</span>
                 }
+                else if (missing && Session.CostOfMissing(recipe.Inputs) is { } buyCost && Session.BuyCurrency is { } currency)
+                {
+                    <button class="btn" disabled="@(State.Balance(currency.Id) < buyCost)" @onclick="() => Session.BuyMissing(recipe.Inputs)"
+                            title="Buy what's missing from the market">
+                        Buy <span class="cost"><span aria-hidden="true">@defs.Emoji(currency.Asset)</span>@buyCost.ToString("N0")</span>
+                    </button>
+                }
                 else
                 {
                     <button class="btn" disabled="@(missing || freeSlots <= 0)" title="@(producer.Category == "field" ? "Press R over a field to plant its last crop again" : null)" @onclick="() => Session.Do(new StartRecipe(placement.Id, recipe.Id))">

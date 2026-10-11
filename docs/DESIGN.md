@@ -57,7 +57,7 @@ Collector.slnx
 | `LandParcel` | Purchasable map region with cost and level gate | parcel_n1 |
 | `Level` | XP thresholds + currency and item rewards | level 2 grants 3 corn to plant |
 | `OrderBoard` | Generator rules for bundle orders | 3 slots, refresh 15 min |
-| `Market` | Base prices + dynamic price model | elasticity, recovery rate |
+| `Market` | Sell prices, and buy prices (a markup on sell price, kept above order payouts) for goods you are short of; dynamic pricing planned | buyMultiplier, elasticity, recovery rate |
 | `Worker` | Automation rule (auto-collect / auto-restart) | farmhand |
 | `ClockMode` | `RealTime`, `Idle`, `Turn` + offline policy | RealTime, offline = Paused |
 
@@ -88,7 +88,7 @@ The only way to change state:
 Result Apply(PlayerState state, ICommand cmd, GameContext ctx)   // ctx = definitions + clock + rng
 ```
 
-`PlaceProducer`, `MoveProducer`, `StartRecipe`, `Collect`, `FillOrder`, `SellToMarket`, `BuyParcel`, `Upgrade`, `SpeedUp`, `HireWorker`, …
+`PlaceProducer`, `MoveProducer`, `StartRecipe`, `Collect`, `FillOrder`, `SellItem`, `BuyItem`, `BuyParcel`, `Upgrade`, `SpeedUp`, `HireWorker`, …
 
 Commands are **deterministic**. Randomness comes from a seeded RNG stored in the state, so the client and server compute identical results.
 
