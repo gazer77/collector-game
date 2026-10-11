@@ -1,0 +1,139 @@
+@implements IDisposable
+@inject GameSession Session
+@inject NavigationManager Navigation
+
+@switch (Session.Status)
+{
+    case SessionStatus.Loading:
+        <div class="splash"><p class="splash-text">Opening the farm gate…</p></div>
+        break;
+
+    case SessionStatus.Failed:
+        <div class="splash">
+            <p class="splash-text">@Session.FailureMessage</p>
+            <button class="btn btn-primary" @onclick="Reload">Reload</button>
+        </div>
+        break;
+
+    default:
+        var defs = Session.Definitions;
+        var state = Session.State;
+        <div class="game">
+            <TopBar State="state" />
+
+            <main class="map-area">
+                @if (_placing is not null || _moving is not null)
+                {
+                    <div class="placing-banner" role="status">
+                        <span>
+                            Tap where the @(_placing is not null ? defs.Producers[_placing].Name : defs.Producers[state.FindPlacement(_moving!.Value)?.Producer ?? ""].Name) should go.
+                        </span>
+                        <button class="btn btn-quiet" @onclick="CancelPlacing">Cancel</button>
+                    </div>
+                }
+                <FarmMap State="state"
+                         SelectedId="_selected"
+                         PlacingProducer="@(_placing ?? MovingProducer)"
+                         OnTapPlacement="TapPlacement"
+                         OnTapCell="TapCell" />
+            </main>
+
+            <aside class="sheet" aria-label="Farm panels">
+                @if (_selected is { } id && state.FindPlacement(id) is not null)
+                {
+                    <ProducerPanel State="state" PlacementId="id" OnClose="() => _selected = null" OnMove="StartMove" />
+                }
+                else
+                {
+                    <nav class="tabs" role="tablist">
+                        @foreach (var (tab, label) in Tabs)
+                        {
+                            <button role="tab" class="tab @(tab == _tab ? "is-active" : "")" aria-selected="@(tab == _tab)" @onclick="() => _tab = tab">@label</button>
+                        }
+                    </nav>
+                    <div class="sheet-body">
+                        @switch (_tab)
+                        {
+                            case Tab.Orders: <OrdersPanel State="state" />break;
+                            case Tab.Storage: <StoragePanel State="state" />break;
+                            case Tab.Shop: <ShopPanel State="state" OnBuild="StartPlacing" />break;
+                        }
+                    </div>
+                }
+            </aside>
+
+            <Toasts />
+        </div>
+        break;
+}
+
+@code {
+    [Parameter, EditorRequired] public string PackId { get; set; } = "";
+
+    private enum Tab { Orders, Storage, Shop }
+    private static readonly (Tab, string)[] Tabs = [(Tab.Orders, "Orders"), (Tab.Storage, "Storage"), (Tab.Shop, "Build")];
+
+    private Tab _tab = Tab.Orders;
+    private int? _selected;
+    private string? _placing;
+    private int? _moving;
+
+    private string? MovingProducer => _moving is { } id ? Session.State.FindPlacement(id)?.Producer : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnChanged;
+        await Session.StartAsync(PackId);
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void TapPlacement(int placementId)
+    {
+        var placement = Session.State.FindPlacement(placementId);
+        if (placement is null)
+            return;
+        // Tapping something with finished goods collects them straight away, like picking up a basket.
+        if (placement.Jobs.Any(j => j.IsReady(Session.State.Time)))
+            Session.Do(new Collect(placementId));
+        _selected = placementId;
+    }
+
+    private void TapCell((int X, int Y) cell)
+    {
+        if (_placing is { } producer)
+        {
+            if (Session.Do(new PlaceProducer(producer, cell.X, cell.Y)).Ok)
+                _placing = null;
+        }
+        else if (_moving is { } id)
+        {
+            if (Session.Do(new MoveProducer(id, cell.X, cell.Y)).Ok)
+                _moving = null;
+        }
+    }
+
+    private void StartPlacing(string producerId)
+    {
+        _placing = producerId;
+        _moving = null;
+        _selected = null;
+    }
+
+    private void StartMove(int placementId)
+    {
+        _moving = placementId;
+        _placing = null;
+        _selected = null;
+    }
+
+    private void CancelPlacing()
+    {
+        _placing = null;
+        _moving = null;
+    }
+
+    private void Reload() => Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+
+    public void Dispose() => Session.Changed -= OnChanged;
+}

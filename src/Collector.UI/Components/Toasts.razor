@@ -1,0 +1,36 @@
+@implements IDisposable
+@inject GameSession Session
+
+<div class="toasts" role="status" aria-live="polite">
+    @foreach (var (id, toast) in _toasts)
+    {
+        <div class="toast @(toast.IsError ? "is-error" : "")" @key="id">@toast.Message</div>
+    }
+</div>
+
+@code {
+    private static readonly TimeSpan Lifetime = TimeSpan.FromSeconds(4);
+    private readonly List<(int Id, Toast Toast)> _toasts = [];
+    private int _nextId;
+
+    protected override void OnInitialized() => Session.Toasted += Show;
+
+    private void Show(Toast toast)
+    {
+        var id = _nextId++;
+        _toasts.Add((id, toast));
+        if (_toasts.Count > 3)
+            _toasts.RemoveAt(0);
+        InvokeAsync(StateHasChanged);
+        _ = RemoveLaterAsync(id);
+    }
+
+    private async Task RemoveLaterAsync(int id)
+    {
+        await Task.Delay(Lifetime);
+        _toasts.RemoveAll(t => t.Id == id);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Session.Toasted -= Show;
+}

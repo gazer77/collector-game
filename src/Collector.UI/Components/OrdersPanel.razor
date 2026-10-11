@@ -1,0 +1,55 @@
+@inject GameSession Session
+
+@{
+    var defs = Session.Definitions;
+}
+<section class="panel" aria-label="Orders">
+    @if (defs.Orders is null || State.Orders.Count == 0)
+    {
+        <p class="empty">Orders open up at level @(defs.Orders?.UnlockLevel ?? 1).</p>
+    }
+    else
+    {
+        <p class="panel-intro">Customers pay more than the market. Deliver an order to earn coins and XP.</p>
+        <ul class="orders">
+            @for (var i = 0; i < State.Orders.Count; i++)
+            {
+                var slot = i;
+                var order = State.Orders[slot].Order;
+                if (order is null)
+                {
+                    <li class="order is-empty">New order in @Display.Duration(State.Orders[slot].AvailableAt - State.Time)</li>
+                    continue;
+                }
+                var canFill = order.Items.All(kv => State.Count(kv.Key) >= kv.Value);
+                <li class="order @(canFill ? "is-fillable" : "")">
+                    <div class="order-items">
+                        @foreach (var (item, qty) in order.Items)
+                        {
+                            <span class="need @(State.Count(item) < qty ? "is-short" : "")">
+                                <span class="need-glyph" aria-hidden="true">@defs.Emoji(defs.Items[item].Asset)</span>
+                                @State.Count(item)/@qty
+                                <span class="visually-hidden">@defs.Items[item].Name</span>
+                            </span>
+                        }
+                    </div>
+                    <div class="order-reward">
+                        @foreach (var (currency, amount) in order.Rewards)
+                        {
+                            <span class="cost"><span aria-hidden="true">@defs.Emoji(defs.Currencies[currency].Asset)</span>@amount.ToString("N0")</span>
+                        }
+                        <span class="xp">+@order.Xp XP</span>
+                    </div>
+                    <div class="order-actions">
+                        <button class="btn btn-primary" disabled="@(!canFill)" @onclick="() => Session.Do(new FillOrder(slot))">Deliver</button>
+                        <button class="btn btn-quiet" @onclick="() => Session.Do(new DiscardOrder(slot))" title="A new order arrives after @Display.Duration(defs.Orders.DiscardCooldownSeconds * 1000)">Skip</button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public PlayerState State { get; set; } = null!;
+}

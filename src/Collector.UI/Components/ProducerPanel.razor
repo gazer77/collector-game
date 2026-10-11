@@ -1,0 +1,123 @@
+@inject GameSession Session
+
+@{
+    var defs = Session.Definitions;
+    var engine = Session.Engine;
+    var placement = State.FindPlacement(PlacementId)!;
+    var producer = defs.Producers[placement.Producer];
+    var tier = engine.TierOf(placement);
+    var nextTier = placement.Tier + 1 < producer.Tiers.Count ? producer.Tiers[placement.Tier + 1] : null;
+    var now = State.Time;
+    var ready = placement.Jobs.Count(j => j.IsReady(now));
+    var speedUpCost = engine.SpeedUpCost(State, placement);
+    var freeSlots = tier.Slots - placement.Jobs.Count;
+}
+<section class="panel" aria-labelledby="producer-title">
+    <header class="panel-head">
+        <span class="panel-glyph" aria-hidden="true">@defs.Emoji(producer.Asset)</span>
+        <div>
+            <h2 id="producer-title" class="panel-title">@producer.Name</h2>
+            <p class="panel-sub">
+                @(producer.QueueMode == QueueMode.Sequential ? "Makes one batch at a time" : "Everything grows at once")
+                · @placement.Jobs.Count of @tier.Slots slots in use
+            </p>
+        </div>
+        <button class="btn btn-quiet close" @onclick="OnClose" aria-label="Close">✕</button>
+    </header>
+
+    @if (placement.Jobs.Count > 0)
+    {
+        <ol class="jobs">
+            @foreach (var job in placement.Jobs)
+            {
+                var recipe = defs.Recipes[job.Recipe];
+                var output = recipe.Outputs.First();
+                <li class="job @(job.IsReady(now) ? "is-ready" : "")">
+                    <span class="job-glyph" aria-hidden="true">@defs.Emoji(defs.Items[output.Key].Asset)</span>
+                    <span class="job-name">@output.Value × @defs.Items[output.Key].Name</span>
+                    <span class="job-time">
+                        @if (job.IsReady(now)) { <text>Ready</text> }
+                        else if (job.StartsAt > now) { <text>Waiting · @Display.Duration(job.EndsAt - job.StartsAt)</text> }
+                        else { @Display.Duration(job.EndsAt - now) }
+                    </span>
+                </li>
+            }
+        </ol>
+        <div class="actions">
+            @if (ready > 0)
+            {
+                <button class="btn btn-primary" @onclick="() => Session.Do(new Collect(placement.Id))">Collect @ready</button>
+            }
+            @if (speedUpCost is { } cost && defs.Manifest.SpeedUp is { } speedUp)
+            {
+                <button class="btn" @onclick="() => Session.Do(new SpeedUp(placement.Id))">
+                    Finish now <span class="cost"><span aria-hidden="true">@defs.Emoji(defs.Currencies[speedUp.Currency].Asset)</span>@cost</span>
+                </button>
+            }
+        </div>
+    }
+
+    <h3 class="panel-heading">@(producer.Category == "field" ? "Plant" : "Make")</h3>
+    <ul class="recipes">
+        @foreach (var recipe in defs.RecipesFor(producer.Id))
+        {
+            var output = recipe.Outputs.First();
+            var locked = State.Level < recipe.UnlockLevel;
+            var missing = recipe.Inputs.Any(i => State.Count(i.Key) < i.Value);
+            <li class="recipe @(locked ? "is-locked" : "")">
+                <span class="recipe-glyph" aria-hidden="true">@defs.Emoji(defs.Items[output.Key].Asset)</span>
+                <div class="recipe-body">
+                    <span class="recipe-name">@(string.IsNullOrEmpty(recipe.Name) ? defs.Items[output.Key].Name : recipe.Name)</span>
+                    <span class="recipe-detail">
+                        @foreach (var input in recipe.Inputs)
+                        {
+                            <span class="need @(State.Count(input.Key) < input.Value ? "is-short" : "")">
+                                <span aria-hidden="true">@defs.Emoji(defs.Items[input.Key].Asset)</span>@State.Count(input.Key)/@input.Value
+                                <span class="visually-hidden">@defs.Items[input.Key].Name</span>
+                            </span>
+                        }
+                        <span class="recipe-time">@Display.Duration((long)(recipe.DurationSeconds * 1000 * tier.DurationMultiplier))</span>
+                    </span>
+                </div>
+                @if (locked)
+                {
+                    <span class="locked-note">Level @recipe.UnlockLevel</span>
+                }
+                else
+                {
+                    <button class="btn" disabled="@(missing || freeSlots <= 0)" @onclick="() => Session.Do(new StartRecipe(placement.Id, recipe.Id))">
+                        @(producer.Category == "field" ? "Plant" : "Start")
+                    </button>
+                }
+            </li>
+        }
+    </ul>
+
+    <div class="actions actions-secondary">
+        @if (nextTier is not null)
+        {
+            <button class="btn" disabled="@(State.Level < nextTier.UnlockLevel)" @onclick="() => Session.Do(new UpgradeProducer(placement.Id))">
+                @if (State.Level < nextTier.UnlockLevel)
+                {
+                    <text>Upgrade at level @nextTier.UnlockLevel</text>
+                }
+                else
+                {
+                    <text>Upgrade to @nextTier.Slots slots</text>
+                    @foreach (var line in defs.Lines(nextTier.Cost))
+                    {
+                        <span class="cost"><span aria-hidden="true">@defs.Emoji(line.Asset)</span>@line.Amount.ToString("N0")</span>
+                    }
+                }
+            </button>
+        }
+        <button class="btn btn-quiet" @onclick="() => OnMove.InvokeAsync(placement.Id)">Move</button>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public PlayerState State { get; set; } = null!;
+    [Parameter, EditorRequired] public int PlacementId { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<int> OnMove { get; set; }
+}

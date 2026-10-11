@@ -1,0 +1,35 @@
+@inject GameSession Session
+
+@{
+    var defs = Session.Definitions;
+    var next = Session.Engine.NextLevel(State);
+    var current = defs.Levels.First(l => l.Level == State.Level);
+    var progress = next is null ? 1.0 : (double)(State.Xp - current.XpRequired) / (next.XpRequired - current.XpRequired);
+}
+<header class="topbar">
+    <div class="level" title="@(next is null ? "Top level reached" : $"{State.Xp} / {next.XpRequired} XP")">
+        <span class="level-number" aria-label="Level @State.Level">@State.Level</span>
+        <span class="xp-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@((int)(progress * 100))" aria-label="Progress to next level">
+            <span class="xp-fill" style="width:@((progress * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%"></span>
+        </span>
+    </div>
+    <h1 class="farm-name">@defs.Manifest.Name</h1>
+    <div class="wallet">
+        @foreach (var currency in defs.Content.Currencies)
+        {
+            <span class="balance" title="@currency.Name">
+                <span aria-hidden="true">@defs.Emoji(currency.Asset)</span>
+                <span class="balance-amount">@State.Balance(currency.Id).ToString("N0")</span>
+                <span class="visually-hidden">@currency.Name</span>
+            </span>
+        }
+        @if (Session.IsOffline)
+        {
+            <span class="offline" role="status">Offline</span>
+        }
+    </div>
+</header>
+
+@code {
+    [Parameter, EditorRequired] public PlayerState State { get; set; } = null!;
+}

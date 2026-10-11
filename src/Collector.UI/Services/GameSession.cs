@@ -1,0 +1,241 @@
+using System.Diagnostics;
+using Collector.Contracts;
+using Collector.Engine.Commands;
+using Collector.Engine.Definitions;
+using Collector.Engine.Packs;
+using Collector.Engine.Simulation;
+using Collector.Engine.State;
+
+namespace Collector.UI.Services;
+
+public enum SessionStatus { Loading, Ready, Failed }
+
+public sealed record Toast(string Message, bool IsError = false);
+
+/// <summary>
+/// The client side of a game. Commands run through the engine locally first, so the UI responds instantly,
+/// and are then sent to the server in order. <see cref="State"/> is always rebuilt as
+/// "last state the server confirmed + time since then + commands the server hasn't confirmed yet",
+/// so a server correction never leaves the UI out of step.
+/// </summary>
+public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDisposable
+{
+    private const string DeviceIdKey = "collector.deviceId";
+    private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(15);
+
+    private readonly List<CommandEnvelope> _pending = [];
+    private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private readonly CancellationTokenSource _stop = new();
+    private PlayerState? _confirmed;
+    private TimeSpan _confirmedAt;
+    private TimeSpan _lastContact;
+    private long _nextSeq = 1;
+    private bool _inFlight;
+    private bool _offline;
+    private string _packId = "";
+
+    public SessionStatus Status { get; private set; } = SessionStatus.Loading;
+    public string? FailureMessage { get; private set; }
+    public GameDefinitions Definitions { get; private set; } = null!;
+    public GameEngine Engine { get; private set; } = null!;
+
+    /// <summary>What the player sees: the server's state plus local predictions.</summary>
+    public PlayerState State { get; private set; } = null!;
+
+    public bool IsOffline => _offline;
+
+    /// <summary>Raised whenever <see cref="State"/> changes, including once per second as the clock ticks.</summary>
+    public event Action? Changed;
+    public event Action<Toast>? Toasted;
+
+    public async Task StartAsync(string packId)
+    {
+        _packId = packId;
+        try
+        {
+            await LoginAsync();
+            var bundle = await api.GetPackAsync(packId);
+            Definitions = await PackLoader.LoadAsync(new MemoryPackSource(bundle.Files));
+            Engine = new GameEngine(Definitions);
+            Accept(await api.SyncAsync(packId));
+            Status = SessionStatus.Ready;
+            _ = RunTimerAsync();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or PackValidationException or UnauthorizedAccessException)
+        {
+            Status = SessionStatus.Failed;
+            FailureMessage = ex is HttpRequestException
+                ? "Can't reach the farm server. Check your connection and reload."
+                : ex.Message;
+        }
+        Changed?.Invoke();
+    }
+
+    /// <summary>Runs a command now and queues it for the server. Returns the local result so the UI can react.</summary>
+    public CommandResult Do(GameCommand command)
+    {
+        var result = Engine.Apply(State, command);
+        if (!result.Ok)
+        {
+            Toasted?.Invoke(new Toast(result.Message, IsError: true));
+            return result;
+        }
+
+        _pending.Add(new CommandEnvelope(_nextSeq++, command));
+        AnnounceEvents(result.Events);
+        Changed?.Invoke();
+        _ = FlushAsync();
+        return result;
+    }
+
+    private async Task LoginAsync()
+    {
+        var deviceId = await storage.GetAsync(DeviceIdKey);
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            deviceId = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")[..8];
+            await storage.SetAsync(DeviceIdKey, deviceId);
+        }
+        await api.LoginAsync(deviceId);
+    }
+
+    private async Task FlushAsync()
+    {
+        if (_inFlight || _pending.Count == 0)
+            return;
+        _inFlight = true;
+        var batch = _pending.ToList();
+        try
+        {
+            var result = await CallServerAsync(() => api.SendAsync(_packId, new CommandBatch(State.Time, batch)));
+            if (result is null)
+                return;
+            var sent = batch.Select(c => c.Seq).ToHashSet();
+            _pending.RemoveAll(c => sent.Contains(c.Seq));
+            foreach (var rejected in result.Results.Where(r => !r.Ok))
+                Toasted?.Invoke(new Toast($"The farm didn't accept that: {rejected.Message}", IsError: true));
+            Accept(result.Sync);
+        }
+        finally
+        {
+            _inFlight = false;
+        }
+        if (_pending.Count > 0)
+            await FlushAsync();
+    }
+
+    private async Task HeartbeatAsync()
+    {
+        if (_inFlight || _pending.Count > 0)
+            return;
+        _inFlight = true;
+        try
+        {
+            if (await CallServerAsync(() => api.HeartbeatAsync(_packId)) is { } sync && _pending.Count == 0)
+                Accept(sync);
+        }
+        finally
+        {
+            _inFlight = false;
+        }
+    }
+
+    /// <summary>Calls the server, signing in again if the token expired, and tracks whether we're offline.</summary>
+    private async Task<T?> CallServerAsync<T>(Func<Task<T>> call) where T : class
+    {
+        try
+        {
+            T result;
+            try
+            {
+                result = await call();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                await LoginAsync();
+                result = await call();
+            }
+            _lastContact = _clock.Elapsed;
+            if (_offline)
+            {
+                _offline = false;
+                Toasted?.Invoke(new Toast("Back online."));
+            }
+            return result;
+        }
+        catch (HttpRequestException)
+        {
+            if (!_offline)
+            {
+                _offline = true;
+                Toasted?.Invoke(new Toast("Lost connection to the farm. Your actions will be sent when it's back.", IsError: true));
+            }
+            return null;
+        }
+    }
+
+    private void Accept(GameSync sync)
+    {
+        _confirmed = sync.State;
+        _confirmedAt = _clock.Elapsed;
+        _lastContact = _clock.Elapsed;
+        Rebuild();
+    }
+
+    private void Rebuild()
+    {
+        var state = StateHasher.Clone(_confirmed!);
+        var elapsed = (long)(_clock.Elapsed - _confirmedAt).TotalMilliseconds;
+        if (Definitions.Manifest.Clock.Mode != ClockMode.Turn && elapsed > 0)
+            Engine.AdvanceTime(state, elapsed);
+        foreach (var envelope in _pending)
+            Engine.Apply(state, envelope.Command);
+        State = state;
+        Changed?.Invoke();
+    }
+
+    private async Task RunTimerAsync()
+    {
+        using var timer = new PeriodicTimer(TickInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_stop.Token))
+            {
+                var previousLevel = State.Level;
+                Rebuild();
+                if (_pending.Count > 0)
+                    await FlushAsync();
+                else if (_clock.Elapsed - _lastContact >= HeartbeatInterval)
+                    await HeartbeatAsync();
+                if (State.Level > previousLevel)
+                    Toasted?.Invoke(new Toast($"Level {State.Level}!"));
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private void AnnounceEvents(IReadOnlyList<GameEvent> events)
+    {
+        foreach (var e in events)
+        {
+            if (e is LevelReached level)
+            {
+                var rewards = level.Rewards.Select(r => $"{r.Value} {Definitions.Currencies[r.Key].Name}")
+                    .Concat(level.ItemRewards.Select(r => $"{r.Value} {Definitions.Items[r.Key].Name}"));
+                Toasted?.Invoke(new Toast($"Level {level.Level}! You got {string.Join(", ", rewards)}."));
+            }
+            else if (e is OrderCompleted)
+            {
+                Toasted?.Invoke(new Toast("Order delivered."));
+            }
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _stop.Cancel();
+        _stop.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

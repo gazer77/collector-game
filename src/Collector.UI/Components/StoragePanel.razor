@@ -1,0 +1,72 @@
+@inject GameSession Session
+
+@{
+    var defs = Session.Definitions;
+    var engine = Session.Engine;
+    var sellCurrency = defs.Market is { } market ? defs.Currencies[market.SellCurrency] : null;
+}
+<section class="panel" aria-label="Storage">
+    @foreach (var storage in defs.Content.Storage)
+    {
+        var used = engine.StorageUsed(State, storage.Id);
+        var capacity = engine.StorageCapacity(State, storage.Id);
+        var tier = State.StorageTier(storage.Id);
+        var next = tier + 1 < storage.Tiers.Count ? storage.Tiers[tier + 1] : null;
+        var items = defs.Content.Items.Where(i => i.Storage == storage.Id && State.Count(i.Id) > 0).ToList();
+        <div class="store">
+            <header class="store-head">
+                <span class="panel-glyph" aria-hidden="true">@defs.Emoji(storage.Asset)</span>
+                <h2 class="panel-title">@storage.Name</h2>
+                <span class="store-fill @(used >= capacity ? "is-full" : "")">@used / @capacity</span>
+            </header>
+            <span class="capacity" aria-hidden="true"><span style="width:@(Math.Min(100, 100 * used / capacity))%"></span></span>
+
+            @if (items.Count == 0)
+            {
+                <p class="empty">Empty. Harvest something to fill it.</p>
+            }
+            else
+            {
+                <ul class="stock">
+                    @foreach (var item in items)
+                    {
+                        var count = State.Count(item.Id);
+                        <li class="stock-row">
+                            <span class="stock-glyph" aria-hidden="true">@defs.Emoji(item.Asset)</span>
+                            <span class="stock-name">@item.Name</span>
+                            <span class="stock-count">@count</span>
+                            @if (sellCurrency is not null && item.SellPrice > 0)
+                            {
+                                <button class="btn btn-small" @onclick="() => Session.Do(new SellItem(item.Id, 1))" title="Sell one for @item.SellPrice @sellCurrency.Name">
+                                    Sell <span class="cost"><span aria-hidden="true">@defs.Emoji(sellCurrency.Asset)</span>@item.SellPrice</span>
+                                </button>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (next is not null)
+            {
+                <button class="btn" disabled="@(State.Level < next.UnlockLevel)" @onclick="() => Session.Do(new UpgradeStorage(storage.Id))">
+                    @if (State.Level < next.UnlockLevel)
+                    {
+                        <text>Expand at level @next.UnlockLevel</text>
+                    }
+                    else
+                    {
+                        <text>Expand to @next.Capacity</text>
+                        @foreach (var line in defs.Lines(next.Cost))
+                        {
+                            <span class="cost"><span aria-hidden="true">@defs.Emoji(line.Asset)</span>@line.Amount.ToString("N0")</span>
+                        }
+                    }
+                </button>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public PlayerState State { get; set; } = null!;
+}

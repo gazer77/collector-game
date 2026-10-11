@@ -1,0 +1,52 @@
+@inject GameSession Session
+
+@{
+    var defs = Session.Definitions;
+}
+<section class="panel" aria-label="Build">
+    <ul class="shop">
+        @foreach (var producer in defs.Content.Producers.OrderBy(p => p.UnlockLevel))
+        {
+            var owned = State.Placements.Count(p => p.Producer == producer.Id);
+            var limit = GameDefinitions.LimitFor(producer, State.Level);
+            var locked = State.Level < producer.UnlockLevel;
+            var full = limit is { } l && owned >= l;
+            <li class="shop-row @(locked ? "is-locked" : "")">
+                <span class="shop-glyph" style="--tint:@(defs.Tint(producer.Asset) ?? "#9a8a6a")" aria-hidden="true">@defs.Emoji(producer.Asset)</span>
+                <div class="shop-body">
+                    <span class="shop-name">@producer.Name</span>
+                    <span class="shop-detail">
+                        @producer.Width×@producer.Height
+                        @if (limit is not null && !locked) { <text> · @owned of @limit built</text> }
+                    </span>
+                </div>
+                @if (locked)
+                {
+                    <span class="locked-note">Level @producer.UnlockLevel</span>
+                }
+                else
+                {
+                    <button class="btn" disabled="@full" @onclick="() => OnBuild.InvokeAsync(producer.Id)">
+                        @if (full)
+                        {
+                            <text>Limit reached</text>
+                        }
+                        else
+                        {
+                            <text>Build</text>
+                            @foreach (var line in defs.Lines(producer.Cost))
+                            {
+                                <span class="cost"><span aria-hidden="true">@defs.Emoji(line.Asset)</span>@line.Amount.ToString("N0")</span>
+                            }
+                        }
+                    </button>
+                }
+            </li>
+        }
+    </ul>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public PlayerState State { get; set; } = null!;
+    [Parameter] public EventCallback<string> OnBuild { get; set; }
+}

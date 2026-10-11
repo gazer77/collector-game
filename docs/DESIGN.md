@@ -110,9 +110,11 @@ The hybrid loop is RealTime plus workers. It needs no fourth mode.
 4. The server applies the commands against its own state using **server time**, persists it, and returns `{version, stateHash}`. If the hash doesn't match, the client replaces its local state with the server's copy.
 5. A heartbeat (SignalR or periodic POST) keeps the session "active" for the paused-while-away clock.
 
-The client's clock will run slightly ahead of or behind the server's. If a command arrives a moment before the server thinks a job is done (e.g. `Collect`), the server may advance that player's clock by a small tolerance (planned: ≤ 2 s) before applying it. A command that is still invalid after that is rejected, and the client resyncs.
+The client's clock will run slightly ahead of or behind the server's. If a command arrives a moment before the server thinks a job is done (e.g. `Collect`), the server may advance that player's clock by a small tolerance (default 2 s, repaid from later catch-ups so it can never accumulate) before applying it. A command that is still invalid after that is rejected, and the client resyncs.
 
-Persistence (MVP): table `Players` (Id, DeviceId, CreatedAt), table `Saves` (PlayerId, PackId, StateJson, Version as a concurrency token). Trading, leaderboards, and guilds get relational tables in later milestones, because they span players.
+Persistence (M1): table `Players` (Id, DeviceId, CreatedAt), table `Saves` (PlayerId, PackId, StateJson, Version, LastSeenAt, AheadMs). The schema is created with `EnsureCreated`; switch to EF migrations before the first schema change on a real deployment. Trading, leaderboards, and guilds get relational tables in later milestones, because they span players.
+
+The client (`GameSession`) always shows *last server state + time since + unconfirmed commands*, rebuilt every second, so server corrections never leave the UI out of step. Pending commands are sent in order, one batch at a time, and kept through connection drops.
 
 ## 5. Content packs
 
@@ -145,7 +147,7 @@ Loading has two passes: JSON-schema validation, then semantic validation. Semant
 | Milestone | Scope |
 |---|---|
 | **M0 — Skeleton** ✅ | Solution, pack loader + validation, engine core (state, commands, clock), farm pack content, 37 tests. |
-| **M1 — Vertical slice** | Farm pack: 3 crops (wheat, corn, carrots), 2 animals (chickens, cows), 2 processors (mill, dairy). Order board, XP levels, buying land, capped storage + upgrades, coins + gems. Guest auth, SQLite, playable web client. |
+| **M1 — Vertical slice** ✅ | Farm pack (3 crops, chickens/cows/pigs, feed mill, dairy, smokehouse), order board, XP levels, buying land, capped storage + upgrades, coins + gems. Guest auth (JWT), SQLite, paused-while-away clock with drift tolerance, playable web client with local prediction. 46 tests. |
 | **M2 — Economy** | Dynamic market prices, player trading (listings), building upgrades beyond tier 1, workers/automation. |
 | **M3 — Social** | Visit neighbors (read-only + help actions), leaderboards, guilds/co-op goals. |
 | **M4 — Mobile** | MAUI Blazor Hybrid host, local notifications, store builds. |
