@@ -41,11 +41,11 @@
     "id": "feed_mill", "name": "Feed Mill", "asset": "producer.feed_mill", "category": "building",
     "width": 2, "height": 2, "cost": { "currencies": { "coins": 150 } }, "unlockLevel": 1,
     "queueMode": "sequential",
-    "limits": [ { "level": 1, "count": 1 } ],
+    "limits": [ { "level": 1, "count": 1 }, { "level": 4, "count": 2 } ],
     "tiers": [
       { "slots": 3 },
-      { "slots": 5, "cost": { "currencies": { "coins": 250 } }, "unlockLevel": 2 },
-      { "slots": 7, "durationMultiplier": 0.8, "cost": { "currencies": { "coins": 900 } }, "unlockLevel": 5 }
+      { "slots": 5, "lanes": 2, "cost": { "currencies": { "coins": 250 } }, "unlockLevel": 2 },
+      { "slots": 7, "lanes": 3, "durationMultiplier": 0.8, "cost": { "currencies": { "coins": 900 } }, "unlockLevel": 5 }
     ]
   },
   {

@@ -270,6 +270,46 @@ public class GameEngineTests
     }
 
     [Fact]
+    public void Upgrading_to_more_lanes_runs_queued_jobs_side_by_side()
+    {
+        var state = NewGame();
+        var mill = state.First("feed_mill");
+        for (var i = 0; i < 3; i++)
+            Ok(state, new StartRecipe(mill.Id, "chicken_feed"));
+        Assert.Equal([0, 180 * Second, 360 * Second], mill.Jobs.Select(j => j.StartsAt));
+
+        // Tier 1 has two lanes: the second job starts at once and the third moves up behind the first.
+        state.Level = 2;
+        state.Wallet["coins"] = 300;
+        Ok(state, new UpgradeProducer(mill.Id));
+        Assert.Equal(2, _engine.LanesOf(mill));
+        Assert.Equal([0, 0, 180 * Second], mill.Jobs.Select(j => j.StartsAt));
+        Assert.Equal([180 * Second, 180 * Second, 360 * Second], mill.Jobs.Select(j => j.EndsAt));
+
+        // A new job takes whichever lane frees up first.
+        state.Inventory["wheat"] = 10;
+        Ok(state, new StartRecipe(mill.Id, "chicken_feed"));
+        Assert.Equal(180 * Second, mill.Jobs[^1].StartsAt);
+
+        // Parallel producers ignore lanes and run every slot.
+        state.Wallet["coins"] = 200;
+        Ok(state, new PlaceProducer("chicken_coop", 6, 4));
+        Assert.Equal(3, _engine.LanesOf(state.First("chicken_coop")));
+    }
+
+    [Fact]
+    public void A_second_feed_mill_unlocks_at_level_four()
+    {
+        var state = NewGame();
+        state.Wallet["coins"] = 1000;
+        state.Level = 3;
+        Fails(state, new PlaceProducer("feed_mill", 6, 4), ErrorCode.LimitReached);
+        state.Level = 4;
+        Ok(state, new PlaceProducer("feed_mill", 6, 4));
+        Fails(state, new PlaceProducer("feed_mill", 6, 7), ErrorCode.LimitReached);
+    }
+
+    [Fact]
     public void Speed_up_charges_by_time_remaining_and_shifts_the_queue()
     {
         var state = NewGame();

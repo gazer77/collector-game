@@ -18,7 +18,8 @@
         <div>
             <h2 id="producer-title" class="panel-title">@producer.Name</h2>
             <p class="panel-sub">
-                @(producer.QueueMode == QueueMode.Sequential ? "Makes one batch at a time" : "Everything grows at once")
+                @(producer.QueueMode == QueueMode.Parallel ? "Everything grows at once"
+                    : tier.Lanes == 1 ? "Makes one batch at a time" : $"Makes {tier.Lanes} batches at a time")
                 · @placement.Jobs.Count of @tier.Slots slots in use
             </p>
         </div>
@@ -104,6 +105,10 @@
                 else
                 {
                     <text>Upgrade to @nextTier.Slots slots</text>
+                    @if (producer.QueueMode == QueueMode.Sequential && nextTier.Lanes > tier.Lanes)
+                    {
+                        <text>, @nextTier.Lanes at once</text>
+                    }
                     @foreach (var line in defs.Lines(nextTier.Cost))
                     {
                         <span class="cost"><span aria-hidden="true">@defs.Emoji(line.Asset)</span>@line.Amount.ToString("N0")</span>

@@ -88,6 +88,10 @@ public sealed record CountLimit(int Level, int Count);
 public sealed record ProducerTier
 {
     public required int Slots { get; init; }
+
+    /// <summary>For sequential producers, how many queued jobs run at the same time. Ignored by parallel producers, which run every slot.</summary>
+    public int Lanes { get; init; } = 1;
+
     public double DurationMultiplier { get; init; } = 1.0;
     public Cost Cost { get; init; } = Cost.Free;
     public int UnlockLevel { get; init; } = 1;

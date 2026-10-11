@@ -96,6 +96,10 @@ public static class PackValidator
                 var tier = producer.Tiers[i];
                 if (tier.Slots < 1)
                     Error("producers.json", $"{owner} tier {i} must have at least one slot.");
+                if (tier.Lanes < 1 || tier.Lanes > tier.Slots)
+                    Error("producers.json", $"{owner} tier {i} must have between 1 and {tier.Slots} lanes.");
+                if (i > 0 && tier.Lanes < producer.Tiers[i - 1].Lanes)
+                    Error("producers.json", $"{owner} tier {i} can't have fewer lanes than tier {i - 1}.");
                 if (tier.DurationMultiplier <= 0)
                     Error("producers.json", $"{owner} tier {i} must have a positive durationMultiplier.");
                 CheckCost("producers.json", $"{owner} tier {i}", tier.Cost);

@@ -148,10 +148,7 @@ public sealed class GameEngine(GameDefinitions definitions)
 
         RemoveItems(state, recipe.Inputs);
         var duration = (long)Math.Round(recipe.DurationSeconds * MsPerSecond * tier.DurationMultiplier);
-        var queueMode = Definitions.Producers[placement.Producer].QueueMode;
-        var startsAt = queueMode == QueueMode.Sequential && placement.Jobs.Count > 0
-            ? Math.Max(state.Time, placement.Jobs[^1].EndsAt)
-            : state.Time;
+        var startsAt = Math.Max(state.Time, Schedule(placement, state.Time));
         placement.Jobs.Add(new Job { Recipe = recipe.Id, StartsAt = startsAt, EndsAt = startsAt + duration });
         placement.LastRecipe = recipe.Id;
         return null;
@@ -201,20 +198,39 @@ public sealed class GameEngine(GameDefinitions definitions)
             return CannotAfford(speedUp.Currency);
 
         state.Wallet[speedUp.Currency] -= cost;
-        var index = placement.Jobs.FindIndex(j => !j.IsReady(state.Time));
-        var job = placement.Jobs[index];
-        var shift = job.EndsAt - state.Time;
-        job.EndsAt = state.Time;
-        if (Definitions.Producers[placement.Producer].QueueMode == QueueMode.Sequential)
-        {
-            // Everything queued behind it moves up by the same amount.
-            foreach (var later in placement.Jobs.Skip(index + 1))
-            {
-                later.StartsAt -= shift;
-                later.EndsAt -= shift;
-            }
-        }
+        placement.Jobs.Find(j => !j.IsReady(state.Time))!.EndsAt = state.Time;
+        // A lane just freed up, so whatever is queued moves up.
+        Schedule(placement, state.Time);
         return null;
+    }
+
+    /// <summary>How many of a placement's jobs run at once: every slot for parallel producers, the tier's lanes for queues.</summary>
+    public int LanesOf(Placement placement)
+    {
+        var tier = TierOf(placement);
+        return Definitions.Producers[placement.Producer].QueueMode == QueueMode.Parallel ? tier.Slots : tier.Lanes;
+    }
+
+    /// <summary>
+    /// Assigns jobs to lanes in queue order, each to the lane that frees up first. Jobs already running keep their
+    /// times; jobs still waiting are moved to the earliest start their lane allows, keeping their duration.
+    /// Returns when the next new job could start.
+    /// </summary>
+    private long Schedule(Placement placement, long now)
+    {
+        var free = new long[LanesOf(placement)];
+        foreach (var job in placement.Jobs)
+        {
+            var lane = Array.IndexOf(free, free.Min());
+            if (job.StartsAt > now)
+            {
+                var duration = job.EndsAt - job.StartsAt;
+                job.StartsAt = Math.Max(now, free[lane]);
+                job.EndsAt = job.StartsAt + duration;
+            }
+            free[lane] = job.EndsAt;
+        }
+        return free.Min();
     }
 
     private CommandResult? Upgrade(PlayerState state, UpgradeProducer c)
@@ -232,6 +248,8 @@ public sealed class GameEngine(GameDefinitions definitions)
 
         Pay(state, next.Cost);
         placement.Tier++;
+        // More lanes let queued jobs start straight away.
+        Schedule(placement, state.Time);
         return null;
     }
 
