@@ -91,10 +91,11 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
 
     /// <summary>
     /// Plants a field's own last crop again, or the most recently planted crop if the field has none yet.
-    /// If <paramref name="fieldId"/> names a field, that field is replanted (or the reason it can't be is shown);
-    /// otherwise the first free field is. Returns the field it planted on.
+    /// The first of <paramref name="preferred"/> that is a field with room is replanted; if they name fields but
+    /// all are growing, the reason is shown. If none name a field, the first free field is used.
+    /// Returns the field it planted on.
     /// </summary>
-    public int? Replant(int? fieldId)
+    public int? Replant(params int?[] preferred)
     {
         var fields = State.Placements.Where(IsField).ToList();
         // The newest crop still in the ground, else any crop a field remembers.
@@ -107,10 +108,11 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
         }
 
         bool HasRoom(Placement p) => p.Jobs.Count < Engine.TierOf(p).Slots;
-        var target = fields.Find(f => f.Id == fieldId);
-        if (target is not null && !HasRoom(target))
+        var chosen = preferred.Select(id => fields.Find(f => f.Id == id)).OfType<Placement>().Distinct().ToList();
+        var target = chosen.Find(HasRoom);
+        if (target is null && chosen.Count > 0)
         {
-            Toasted?.Invoke(new Toast("This field is already growing something.", IsError: true));
+            Toasted?.Invoke(new Toast(chosen.Count == 1 ? "This field is already growing something." : "These fields are already growing something.", IsError: true));
             return null;
         }
         target ??= fields.Find(f => HasRoom(f) && f.LastRecipe is not null) ?? fields.Find(HasRoom);

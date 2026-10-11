@@ -170,8 +170,8 @@
         switch (key)
         {
             case "r":
-                // The field under the pointer wins, so you can sweep across fields pressing R.
-                Session.Replant(_hovered ?? _selected);
+                // The selected field comes first; once it is growing, the field under the pointer is next.
+                Session.Replant(_selected, _hovered);
                 break;
         }
     }
