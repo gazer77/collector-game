@@ -74,7 +74,7 @@
             <li class="recipe @(locked ? "is-locked" : "")">
                 <span class="recipe-glyph" aria-hidden="true">@defs.Emoji(defs.Items[output.Key].Asset)</span>
                 <div class="recipe-body">
-                    <span class="recipe-name">@(string.IsNullOrEmpty(recipe.Name) ? defs.Items[output.Key].Name : recipe.Name)@if (recipe.Hotkey is { } hotkey) { <kbd class="hotkey" title="Press @hotkey.ToUpperInvariant() to start this on the next free @producer.Name">@hotkey.ToUpperInvariant()</kbd> }</span>
+                    <span class="recipe-name">@(string.IsNullOrEmpty(recipe.Name) ? defs.Items[output.Key].Name : recipe.Name)@if (recipe.Hotkey is { } hotkey) { <kbd class="hotkey" title="Press @hotkey.ToUpperInvariant() while this is selected to start it here">@hotkey.ToUpperInvariant()</kbd> }</span>
                     <span class="recipe-detail">
                         @foreach (var input in recipe.Inputs)
                         {

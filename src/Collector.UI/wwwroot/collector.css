@@ -644,7 +644,8 @@ button { font: inherit; color: inherit; }
 }
 
 .is-locked { opacity: 0.55; }
-.stock-row.is-sold-out { opacity: 0.55; }
+.stock-row.is-empty :is(.stock-glyph, .stock-name, .stock-count) { opacity: 0.5; }
+.confirm-text { font-weight: 700; }
 
 .locked-note {
     font-size: var(--step--1);

@@ -12,7 +12,8 @@
         var capacity = engine.StorageCapacity(State, storage.Id);
         var tier = State.StorageTier(storage.Id);
         var next = tier + 1 < storage.Tiers.Count ? storage.Tiers[tier + 1] : null;
-        var items = defs.Content.Items.Where(i => i.Storage == storage.Id && (State.Count(i.Id) > 0 || IsLingering(i.Id))).ToList();
+        // Everything unlocked stays listed, even at zero, so rows never shift under the cursor.
+        var items = defs.Content.Items.Where(i => i.Storage == storage.Id && (State.Level >= i.UnlockLevel || State.Count(i.Id) > 0)).ToList();
         <div class="store">
             <header class="store-head">
                 <span class="panel-glyph" aria-hidden="true">@defs.Emoji(storage.Asset)</span>
@@ -31,19 +32,28 @@
                     @foreach (var item in items)
                     {
                         var count = State.Count(item.Id);
-                        <li class="stock-row @(count == 0 ? "is-sold-out" : "")">
+                        var sellable = sellCurrency is not null && item.SellPrice > 0;
+                        <li class="stock-row @(count == 0 ? "is-empty" : "")">
                             <span class="stock-glyph" aria-hidden="true">@defs.Emoji(item.Asset)</span>
-                            <span class="stock-name">@item.Name</span>
-                            <span class="stock-count">@count</span>
-                            @if (count == 0)
+                            @if (sellable && _confirming == item.Id && count > 0)
                             {
-                                <button class="btn btn-small" disabled>Sold out</button>
+                                <span class="stock-name confirm-text">
+                                    Sell all @count for <span class="cost"><span aria-hidden="true">@defs.Emoji(sellCurrency!.Asset)</span>@((item.SellPrice * count).ToString("N0"))</span>?
+                                </span>
+                                <button class="btn btn-small btn-primary" @onclick="() => SellAll(item.Id)">Sell all</button>
+                                <button class="btn btn-small btn-quiet" @onclick="() => _confirming = null">Cancel</button>
                             }
-                            else if (sellCurrency is not null && item.SellPrice > 0)
+                            else
                             {
-                                <button class="btn btn-small" @onclick="() => Sell(item.Id)" title="Sell one for @item.SellPrice @sellCurrency.Name">
-                                    Sell <span class="cost"><span aria-hidden="true">@defs.Emoji(sellCurrency.Asset)</span>@item.SellPrice</span>
-                                </button>
+                                <span class="stock-name">@item.Name</span>
+                                <span class="stock-count">@count</span>
+                                @if (sellable)
+                                {
+                                    <button class="btn btn-small" disabled="@(count == 0)" @onclick="() => Session.Do(new SellItem(item.Id, 1))" title="Sell one for @item.SellPrice @sellCurrency!.Name">
+                                        Sell <span class="cost"><span aria-hidden="true">@defs.Emoji(sellCurrency!.Asset)</span>@item.SellPrice</span>
+                                    </button>
+                                    <button class="btn btn-small btn-quiet" disabled="@(count == 0)" @onclick="() => _confirming = item.Id">All</button>
+                                }
                             }
                         </li>
                     }
@@ -72,27 +82,15 @@
 </section>
 
 @code {
-    /// <summary>How long a row stays after its last item is sold, so the list doesn't shift under a quick clicker.</summary>
-    private static readonly TimeSpan SoldOutLinger = TimeSpan.FromSeconds(3);
-
-    private readonly Dictionary<string, DateTime> _soldOutAt = [];
+    /// <summary>The item whose row is asking "sell all?", if any.</summary>
+    private string? _confirming;
 
     [Parameter, EditorRequired] public PlayerState State { get; set; } = null!;
 
-    private void Sell(string itemId)
+    private void SellAll(string itemId)
     {
-        if (Session.Do(new SellItem(itemId, 1)).Ok && Session.State.Count(itemId) == 0)
-            _soldOutAt[itemId] = DateTime.UtcNow;
-    }
-
-    // The session re-renders every second, which is what eventually drops an expired row.
-    private bool IsLingering(string itemId)
-    {
-        if (!_soldOutAt.TryGetValue(itemId, out var at))
-            return false;
-        if (DateTime.UtcNow - at < SoldOutLinger)
-            return true;
-        _soldOutAt.Remove(itemId);
-        return false;
+        _confirming = null;
+        if (Session.State.Count(itemId) is > 0 and var count)
+            Session.Do(new SellItem(itemId, count));
     }
 }

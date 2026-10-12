@@ -65,8 +65,17 @@ public class PackLoaderTests
         Assert.Contains(ex.Errors, e => e.Contains("unknown upgrade 'warp'"));
     }
 
+    [Fact]
+    public void Hotkeys_may_repeat_across_producers()
+    {
+        // C is corn on fields, chicken feed in the mill and cream in the dairy.
+        var withC = TestPacks.Farm.Recipes.Values.Where(r => r.Hotkey == "c").Select(r => r.Producer).ToList();
+        Assert.True(withC.Count > 1);
+        Assert.Equal(withC.Count, withC.Distinct().Count());
+    }
+
     [Theory]
-    [InlineData("\"hotkey\": \"c\"", "\"hotkey\": \"w\"", "already taken")]   // corn steals wheat's key
+    [InlineData("\"hotkey\": \"a\"", "\"hotkey\": \"w\"", "already taken")]   // carrot steals wheat's key on fields
     [InlineData("\"hotkey\": \"c\"", "\"hotkey\": \"r\"", "already taken")]   // R is reserved for replant
     [InlineData("\"hotkey\": \"c\"", "\"hotkey\": \"Co\"", "one lowercase letter or digit")]
     public async Task Recipe_hotkeys_must_be_single_unique_keys(string find, string replace, string error)

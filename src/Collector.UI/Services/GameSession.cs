@@ -113,18 +113,21 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
         return Do(new StartRecipe(target.Id, target.LastRecipe ?? latest)).Ok ? target.Id : null;
     }
 
-    /// <summary>Starts <paramref name="recipeId"/> on the producer <see cref="NextWithRoom"/> picks among those that make it.</summary>
-    public int? StartNext(string recipeId, int? selectedId)
+    /// <summary>Starts <paramref name="recipeId"/> on the selected placement, or the next of its kind with room once it is full.</summary>
+    public int? StartOn(int placementId, string recipeId)
     {
-        var recipe = Definitions.Recipes[recipeId];
-        var producer = Definitions.Producers[recipe.Producer];
-        if (NextWithRoom(State.Placements.Where(p => p.Producer == producer.Id), selectedId) is not { } target)
+        var selected = State.FindPlacement(placementId)!;
+        var producer = Definitions.Producers[selected.Producer];
+        // The selected one if it has any room; once it's full, move on to the next of the same kind.
+        var target = selected.Jobs.Count < Engine.SlotsOf(selected)
+            ? selected
+            : NextWithRoom(State.Placements.Where(p => p.Producer == producer.Id), placementId);
+        if (target is null)
         {
-            Toasted?.Invoke(new Toast(State.Placements.Any(p => p.Producer == producer.Id)
-                ? $"Every {producer.Name} is full." : $"Build a {producer.Name} first.", IsError: true));
+            Toasted?.Invoke(new Toast($"Every {producer.Name} is full.", IsError: true));
             return null;
         }
-        return Do(new StartRecipe(target.Id, recipe.Id)).Ok ? target.Id : null;
+        return Do(new StartRecipe(target.Id, recipeId)).Ok ? target.Id : null;
     }
 
     /// <summary>

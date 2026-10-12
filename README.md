@@ -18,7 +18,7 @@ dotnet run --project src/Collector.Server --launch-profile http
 
 Then open http://localhost:5128. The server serves the web client, the API and the pack files. On first run it creates `src/Collector.Server/App_Data/` with the SQLite database and a token signing key.
 
-Keyboard: **R** replants a field with the crop it last grew (or your most recent crop, for a field that has none yet), and every recipe has a key of its own, shown next to its name: **W**heat, **C**orn, c**A**rrot, chicken **F**eed, c**O**w feed, pi**G** feed, **E**gg, **M**ilk, **P**ork, ice cream (**I**), c**H**eese, **B**acon. Each goes to the selected producer if it has room, otherwise the next one with room in reading order. Recipes get shortcuts from `hotkey` in `recipes.json`. Buildings and pens show how many free slots they have.
+Keyboard: **R** replants anywhere: the selected field if it is empty, otherwise the next empty field in reading order, each with the crop it last grew (or your most recent crop). With a field, pen or building selected, its recipes have their own keys, shown next to each recipe: **W**heat, **C**orn and c**A**rrot on fields; **C**hicken, c**O**w and **P**ig feed in the mill; **E**gg, **M**ilk, **P**ork; **C**ream and c**H**eese in the dairy; **B**acon. A key starts the recipe on the selected one, or the next of its kind with room once it is full. Keys come from `hotkey` in `recipes.json` and only need to be unique within one producer. Buildings and pens show how many free slots they have.
 
 Each browser gets its own guest farm (a device id kept in localStorage). The game clock only runs while the page is open.
 

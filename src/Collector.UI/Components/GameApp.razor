@@ -165,10 +165,12 @@
     {
         if (Session.Status != SessionStatus.Ready)
             return;
+        // R works anywhere; recipe keys belong to the selected producer, so the same key can differ between producers.
         if (key == "r")
             Session.Replant(_selected);
-        else if (Session.Definitions.Content.Recipes.Find(r => r.Hotkey == key) is { } recipe)
-            Session.StartNext(recipe.Id, _selected);
+        else if (_selected is { } id && Session.State.FindPlacement(id) is { } placement
+                 && Session.Definitions.RecipesFor(placement.Producer).FirstOrDefault(r => r.Hotkey == key) is { } recipe)
+            Session.StartOn(placement.Id, recipe.Id);
     }
 
     public async ValueTask DisposeAsync()
