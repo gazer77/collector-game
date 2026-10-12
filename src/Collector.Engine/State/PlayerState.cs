@@ -51,7 +51,12 @@ public sealed class Placement
     public string Producer { get; set; } = "";
     public int X { get; set; }
     public int Y { get; set; }
-    public int Tier { get; set; }
+    /// <summary>Index into the producer's slot tiers. Stored as "tier" so saves from before lanes were separate still load.</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("tier")]
+    public int SlotTier { get; set; }
+
+    /// <summary>Index into the producer's lane tiers.</summary>
+    public int LaneTier { get; set; }
 
     /// <summary>Running and finished-but-uncollected jobs, in queue order.</summary>
     public List<Job> Jobs { get; set; } = [];

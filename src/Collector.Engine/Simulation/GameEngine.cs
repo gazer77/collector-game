@@ -81,8 +81,21 @@ public sealed class GameEngine(GameDefinitions definitions)
     public int StorageUsed(PlayerState state, string storage) =>
         state.Inventory.Where(kv => Definitions.Items[kv.Key].Storage == storage).Sum(kv => kv.Value);
 
-    public ProducerTier TierOf(Placement placement) =>
-        Definitions.Producers[placement.Producer].Tiers[placement.Tier];
+    /// <summary>How many jobs <paramref name="placement"/> can hold, running, waiting or finished.</summary>
+    public int SlotsOf(Placement placement) =>
+        Definitions.Producers[placement.Producer].Slots[placement.SlotTier].Count;
+
+    /// <summary>How many of <paramref name="placement"/>'s jobs run at once (never more than it has slots).</summary>
+    public int LanesOf(Placement placement) =>
+        Math.Min(SlotsOf(placement), Definitions.Producers[placement.Producer].Lanes[placement.LaneTier].Count);
+
+    /// <summary>The next upgrade on <paramref name="track"/> for <paramref name="placement"/>, or null when it's maxed.</summary>
+    public CapacityTier? NextTier(Placement placement, UpgradeTrack track)
+    {
+        var producer = Definitions.Producers[placement.Producer];
+        var (tiers, current) = track == UpgradeTrack.Slots ? (producer.Slots, placement.SlotTier) : (producer.Lanes, placement.LaneTier);
+        return current + 1 < tiers.Count ? tiers[current + 1] : null;
+    }
 
     /// <summary>The next level's definition, or null at max level.</summary>
     public LevelDefinition? NextLevel(PlayerState state) =>
@@ -143,8 +156,7 @@ public sealed class GameEngine(GameDefinitions definitions)
             return CommandResult.Fail(ErrorCode.InvalidCommand, $"{recipe.Id} can't be made in {placement.Producer}.");
         if (state.Level < recipe.UnlockLevel)
             return Locked(string.IsNullOrEmpty(recipe.Name) ? Definitions.Items[recipe.Outputs.Keys.First()].Name : recipe.Name, recipe.UnlockLevel);
-        var tier = TierOf(placement);
-        if (placement.Jobs.Count >= tier.Slots)
+        if (placement.Jobs.Count >= SlotsOf(placement))
             return CommandResult.Fail(ErrorCode.NoFreeSlot, "No free slot. Collect finished goods first.");
         if (CheckItems(state, recipe.Inputs) is { } missing)
             return missing;
@@ -251,10 +263,10 @@ public sealed class GameEngine(GameDefinitions definitions)
     public IEnumerable<UpgradeDefinition> ActiveUpgrades(PlayerState state, Placement placement) =>
         Definitions.UpgradesFor(placement.Producer).Where(u => state.Upgrades.Contains(u.Id));
 
-    /// <summary>How long <paramref name="recipe"/> takes in <paramref name="placement"/>: its tier speed times every owned upgrade.</summary>
+    /// <summary>How long <paramref name="recipe"/> takes in <paramref name="placement"/>, after every owned upgrade.</summary>
     public long DurationOf(PlayerState state, Placement placement, RecipeDefinition recipe)
     {
-        var multiplier = TierOf(placement).DurationMultiplier;
+        var multiplier = 1.0;
         foreach (var upgrade in ActiveUpgrades(state, placement))
             multiplier *= upgrade.DurationMultiplier;
         return (long)Math.Round(recipe.DurationSeconds * MsPerSecond * multiplier);
@@ -265,20 +277,12 @@ public sealed class GameEngine(GameDefinitions definitions)
         Math.Min(1, ActiveUpgrades(state, placement).Sum(u => u.BonusChance));
 
     /// <summary>
-    /// How many new jobs would start working straight away: lanes not running anything, capped by free queue slots.
-    /// For parallel producers that is simply the empty slots.
+    /// How many new jobs would start working straight away: lanes not running anything, capped by free slots.
     /// </summary>
     public int IdleSlots(PlayerState state, Placement placement)
     {
         var running = placement.Jobs.Count(j => j.StartsAt <= state.Time && !j.IsReady(state.Time));
-        return Math.Max(0, Math.Min(LanesOf(placement) - running, TierOf(placement).Slots - placement.Jobs.Count));
-    }
-
-    /// <summary>How many of a placement's jobs run at once: every slot for parallel producers, the tier's lanes for queues.</summary>
-    public int LanesOf(Placement placement)
-    {
-        var tier = TierOf(placement);
-        return Definitions.Producers[placement.Producer].QueueMode == QueueMode.Parallel ? tier.Slots : tier.Lanes;
+        return Math.Max(0, Math.Min(LanesOf(placement) - running, SlotsOf(placement) - placement.Jobs.Count));
     }
 
     /// <summary>
@@ -308,17 +312,20 @@ public sealed class GameEngine(GameDefinitions definitions)
         if (state.FindPlacement(c.PlacementId) is not { } placement)
             return NoPlacement(c.PlacementId);
         var producer = Definitions.Producers[placement.Producer];
-        if (placement.Tier + 1 >= producer.Tiers.Count)
-            return CommandResult.Fail(ErrorCode.MaxTier, $"{producer.Name} is fully upgraded.");
-        var next = producer.Tiers[placement.Tier + 1];
+        var what = c.Track == UpgradeTrack.Slots ? "slots" : "lanes";
+        if (NextTier(placement, c.Track) is not { } next)
+            return CommandResult.Fail(ErrorCode.MaxTier, $"{producer.Name} {what} are fully upgraded.");
         if (state.Level < next.UnlockLevel)
-            return Locked($"{producer.Name} upgrade", next.UnlockLevel);
+            return Locked($"More {producer.Name} {what}", next.UnlockLevel);
         if (CheckAffordable(state, next.Cost) is { } cantAfford)
             return cantAfford;
 
         Pay(state, next.Cost);
-        placement.Tier++;
-        // More lanes let queued jobs start straight away.
+        if (c.Track == UpgradeTrack.Slots)
+            placement.SlotTier++;
+        else
+            placement.LaneTier++;
+        // New lanes (or slots letting existing lanes count) let queued jobs start straight away.
         Schedule(placement, state.Time);
         return null;
     }

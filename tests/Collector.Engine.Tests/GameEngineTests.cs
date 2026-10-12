@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Collector.Engine.Commands;
+using Collector.Engine.Definitions;
 using Collector.Engine.Packs;
 using Collector.Engine.Serialization;
 using Collector.Engine.Simulation;
@@ -268,22 +269,69 @@ public class GameEngineTests
     }
 
     [Fact]
-    public void Upgrading_a_producer_adds_slots_up_to_max_tier()
+    public void Slots_and_lanes_upgrade_separately_up_to_their_max()
     {
         var state = NewGame();
         var mill = state.First("feed_mill");
-        Fails(state, new UpgradeProducer(mill.Id), ErrorCode.Locked); // tier 1 needs level 2
+        Fails(state, new UpgradeProducer(mill.Id, UpgradeTrack.Slots), ErrorCode.Locked); // needs level 2
+        Fails(state, new UpgradeProducer(mill.Id, UpgradeTrack.Lanes), ErrorCode.Locked); // needs level 3
 
-        state.Level = 5;
-        state.Wallet["coins"] = 2000;
-        Ok(state, new UpgradeProducer(mill.Id));
-        Assert.Equal(5, _engine.TierOf(mill).Slots);
-        Ok(state, new UpgradeProducer(mill.Id));
-        Fails(state, new UpgradeProducer(mill.Id), ErrorCode.MaxTier);
+        state.Level = 6;
+        state.Wallet["coins"] = 5000;
+        Ok(state, new UpgradeProducer(mill.Id, UpgradeTrack.Slots));
+        Assert.Equal((5, 1), (_engine.SlotsOf(mill), _engine.LanesOf(mill)));
+        Ok(state, new UpgradeProducer(mill.Id, UpgradeTrack.Lanes));
+        Assert.Equal((5, 2), (_engine.SlotsOf(mill), _engine.LanesOf(mill)));
+        Ok(state, new UpgradeProducer(mill.Id, UpgradeTrack.Slots));
+        Ok(state, new UpgradeProducer(mill.Id, UpgradeTrack.Lanes));
+        Assert.Equal((7, 3), (_engine.SlotsOf(mill), _engine.LanesOf(mill)));
+        Fails(state, new UpgradeProducer(mill.Id, UpgradeTrack.Slots), ErrorCode.MaxTier);
+        Fails(state, new UpgradeProducer(mill.Id, UpgradeTrack.Lanes), ErrorCode.MaxTier);
+        Assert.Equal(5000 - 250 - 400 - 700 - 1200, state.Balance("coins"));
+    }
 
-        // Tier 2 makes jobs 20% faster.
-        Ok(state, new StartRecipe(mill.Id, "chicken_feed"));
-        Assert.Equal(144 * Second, mill.Jobs[0].EndsAt);
+    [Fact]
+    public void Saves_from_before_lanes_were_separate_still_load()
+    {
+        var state = NewGame();
+        state.Placements[0].SlotTier = 1;
+        var json = StateHasher.Serialize(state);
+        Assert.Contains("\"tier\":1", json); // the old field name is kept
+        var old = json.Replace("\"laneTier\":0,", "");
+        Assert.DoesNotContain("laneTier", old);
+
+        var loaded = StateHasher.Deserialize(old);
+
+        Assert.Equal(1, loaded.Placements[0].SlotTier);
+        Assert.Equal(0, loaded.Placements[0].LaneTier);
+    }
+
+    [Fact]
+    public void Every_farm_producer_can_upgrade_both_slots_and_lanes()
+    {
+        Assert.All(TestPacks.Farm.Producers.Values, p =>
+        {
+            Assert.True(p.Slots.Count > 1, $"{p.Id} has no slot upgrade");
+            Assert.True(p.Lanes.Count > 1, $"{p.Id} has no lane upgrade");
+        });
+    }
+
+    [Fact]
+    public void Lanes_never_exceed_slots()
+    {
+        var state = NewGame();
+        state.Level = 4;
+        state.Wallet["coins"] = 1000;
+        var field = state.First("field");
+        Ok(state, new UpgradeProducer(field.Id, UpgradeTrack.Lanes)); // 2 lanes, but only 1 slot
+        Assert.Equal(1, _engine.LanesOf(field));
+        Ok(state, new UpgradeProducer(field.Id, UpgradeTrack.Slots));
+        Assert.Equal(2, _engine.LanesOf(field));
+
+        // Two crops now grow side by side on one field.
+        Ok(state, new StartRecipe(field.Id, "grow_wheat"));
+        Ok(state, new StartRecipe(field.Id, "grow_wheat"));
+        Assert.All(field.Jobs, j => Assert.Equal(0, j.StartsAt));
     }
 
     [Fact]
@@ -295,20 +343,22 @@ public class GameEngineTests
             Ok(state, new StartRecipe(mill.Id, "chicken_feed"));
         Assert.Equal([0, 180 * Second, 360 * Second], mill.Jobs.Select(j => j.StartsAt));
 
-        // Tier 1 has two lanes: the second job starts at once and the third moves up behind the first.
-        state.Level = 2;
-        state.Wallet["coins"] = 300;
-        Ok(state, new UpgradeProducer(mill.Id));
+        // A second lane: the second job starts at once and the third moves up behind the first.
+        state.Level = 3;
+        state.Wallet["coins"] = 400;
+        Ok(state, new UpgradeProducer(mill.Id, UpgradeTrack.Lanes));
         Assert.Equal(2, _engine.LanesOf(mill));
         Assert.Equal([0, 0, 180 * Second], mill.Jobs.Select(j => j.StartsAt));
         Assert.Equal([180 * Second, 180 * Second, 360 * Second], mill.Jobs.Select(j => j.EndsAt));
 
-        // A new job takes whichever lane frees up first.
+        // With room for more, a new job takes whichever lane frees up first.
+        state.Wallet["coins"] = 250;
+        Ok(state, new UpgradeProducer(mill.Id, UpgradeTrack.Slots));
         state.Inventory["wheat"] = 10;
         Ok(state, new StartRecipe(mill.Id, "chicken_feed"));
         Assert.Equal(180 * Second, mill.Jobs[^1].StartsAt);
 
-        // Parallel producers ignore lanes and run every slot.
+        // Animals start with as many lanes as slots, so everything runs at once.
         state.Wallet["coins"] = 200;
         Ok(state, new PlaceProducer("chicken_coop", 6, 4));
         Assert.Equal(3, _engine.LanesOf(state.First("chicken_coop")));

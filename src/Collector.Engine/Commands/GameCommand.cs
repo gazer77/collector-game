@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Collector.Engine.Definitions;
 
 namespace Collector.Engine.Commands;
 
@@ -33,7 +34,8 @@ public sealed record CancelJob(int PlacementId, int Index) : GameCommand;
 
 /// <summary>Pays to finish the placement's next unfinished job now.</summary>
 public sealed record SpeedUp(int PlacementId) : GameCommand;
-public sealed record UpgradeProducer(int PlacementId) : GameCommand;
+/// <summary>Buys the next tier of a placement's slots (more can be queued) or lanes (more run at once).</summary>
+public sealed record UpgradeProducer(int PlacementId, UpgradeTrack Track = UpgradeTrack.Slots) : GameCommand;
 public sealed record UpgradeStorage(string Storage) : GameCommand;
 public sealed record BuyParcel(string Parcel) : GameCommand;
 public sealed record BuyUpgrade(string Upgrade) : GameCommand;

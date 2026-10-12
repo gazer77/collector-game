@@ -128,14 +128,16 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
     }
 
     /// <summary>
-    /// The selected placement if it's one of <paramref name="candidates"/> and has room, otherwise the next one with
-    /// room after it in reading order (row by row, left to right, wrapping round), or the first when none is selected.
+    /// Walks <paramref name="candidates"/> in reading order (row by row, left to right, wrapping round) starting at the
+    /// selected one, or the first when none is selected. Picks the first that would start the job straight away;
+    /// failing that, the first that can at least queue it.
     /// </summary>
     private Placement? NextWithRoom(IEnumerable<Placement> candidates, int? selectedId)
     {
         var ordered = candidates.OrderBy(p => p.Y).ThenBy(p => p.X).ToList();
         var start = Math.Max(0, ordered.FindIndex(p => p.Id == selectedId));
-        return ordered.Skip(start).Concat(ordered.Take(start)).FirstOrDefault(p => p.Jobs.Count < Engine.TierOf(p).Slots);
+        var walk = ordered.Skip(start).Concat(ordered.Take(start)).ToList();
+        return walk.Find(p => Engine.IdleSlots(State, p) > 0) ?? walk.Find(p => p.Jobs.Count < Engine.SlotsOf(p));
     }
 
     /// <summary>How many of <paramref name="itemId"/> the open orders ask for, in total.</summary>

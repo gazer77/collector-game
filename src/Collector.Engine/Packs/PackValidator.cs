@@ -89,23 +89,24 @@ public static class PackValidator
             var owner = $"Producer '{producer.Id}'";
             if (producer.Width < 1 || producer.Height < 1)
                 Error("producers.json", $"{owner} must be at least 1x1.");
-            if (producer.Tiers.Count == 0)
-                Error("producers.json", $"{owner} needs at least one tier.");
             if (producer.LimitPerParcel < 0)
                 Error("producers.json", $"{owner} limitPerParcel can't be negative.");
-            for (var i = 0; i < producer.Tiers.Count; i++)
+            foreach (var (track, tiers) in new[] { ("slots", producer.Slots), ("lanes", producer.Lanes) })
             {
-                var tier = producer.Tiers[i];
-                if (tier.Slots < 1)
-                    Error("producers.json", $"{owner} tier {i} must have at least one slot.");
-                if (tier.Lanes < 1 || tier.Lanes > tier.Slots)
-                    Error("producers.json", $"{owner} tier {i} must have between 1 and {tier.Slots} lanes.");
-                if (i > 0 && tier.Lanes < producer.Tiers[i - 1].Lanes)
-                    Error("producers.json", $"{owner} tier {i} can't have fewer lanes than tier {i - 1}.");
-                if (tier.DurationMultiplier <= 0)
-                    Error("producers.json", $"{owner} tier {i} must have a positive durationMultiplier.");
-                CheckCost("producers.json", $"{owner} tier {i}", tier.Cost);
+                if (tiers.Count == 0)
+                    Error("producers.json", $"{owner} needs at least one {track} tier.");
+                for (var i = 0; i < tiers.Count; i++)
+                {
+                    if (tiers[i].Count < 1)
+                        Error("producers.json", $"{owner} {track} tier {i} must be at least 1.");
+                    if (i > 0 && tiers[i].Count <= tiers[i - 1].Count)
+                        Error("producers.json", $"{owner} {track} tier {i} must be more than tier {i - 1}.");
+                    CheckCost("producers.json", $"{owner} {track} tier {i}", tiers[i].Cost);
+                }
             }
+            // Lanes beyond the slots can never be used.
+            if (producer.Slots.Count > 0 && producer.Lanes.Count > 0 && producer.Lanes[^1].Count > producer.Slots[^1].Count)
+                Error("producers.json", $"{owner} has more lanes ({producer.Lanes[^1].Count}) than it can ever have slots ({producer.Slots[^1].Count}).");
             if (producer.Limits.Any(l => l.Count < 0))
                 Error("producers.json", $"{owner} has a negative limit.");
             CheckCost("producers.json", owner, producer.Cost);

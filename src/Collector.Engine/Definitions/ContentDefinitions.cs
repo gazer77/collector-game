@@ -56,15 +56,11 @@ public sealed record StorageTier
     public int UnlockLevel { get; init; } = 1;
 }
 
-public enum QueueMode
-{
-    /// <summary>All slots run at the same time (fields, animal pens).</summary>
-    Parallel,
-    /// <summary>Slots are a queue; each job starts when the previous one ends (processing buildings).</summary>
-    Sequential,
-}
-
-/// <summary>Anything placed on the map that runs recipes: a field, an animal pen or a building.</summary>
+/// <summary>
+/// Anything placed on the map that runs recipes: a field, an animal pen or a building. Each holds a queue of jobs
+/// (<see cref="Slots"/>), of which up to <see cref="Lanes"/> run at once; the rest wait their turn. The two are
+/// upgraded separately, per placement.
+/// </summary>
 public sealed record ProducerDefinition
 {
     public required string Id { get; init; }
@@ -77,7 +73,6 @@ public sealed record ProducerDefinition
     public int Height { get; init; } = 1;
     public Cost Cost { get; init; } = Cost.Free;
     public int UnlockLevel { get; init; } = 1;
-    public QueueMode QueueMode { get; init; } = QueueMode.Parallel;
 
     /// <summary>How many may be owned, by player level. The highest entry at or below the player's level applies. Empty means unlimited.</summary>
     public List<CountLimit> Limits { get; init; } = [];
@@ -85,22 +80,30 @@ public sealed record ProducerDefinition
     /// <summary>Extra allowance on top of <see cref="Limits"/> for each land parcel the player owns.</summary>
     public int LimitPerParcel { get; init; }
 
-    /// <summary>Tier 0 is the as-built tier; its cost is ignored.</summary>
-    public required List<ProducerTier> Tiers { get; init; }
+    /// <summary>How many jobs can be queued (running or waiting, plus finished goods not yet collected), by upgrade tier. Tier 0 is as built; its cost is ignored.</summary>
+    public required List<CapacityTier> Slots { get; init; }
+
+    /// <summary>How many queued jobs run at the same time, by upgrade tier. Tier 0 is as built; its cost is ignored.</summary>
+    public required List<CapacityTier> Lanes { get; init; }
 }
 
 public sealed record CountLimit(int Level, int Count);
 
-public sealed record ProducerTier
+/// <summary>One step of a producer's slot or lane upgrades.</summary>
+public sealed record CapacityTier
 {
-    public required int Slots { get; init; }
-
-    /// <summary>For sequential producers, how many queued jobs run at the same time. Ignored by parallel producers, which run every slot.</summary>
-    public int Lanes { get; init; } = 1;
-
-    public double DurationMultiplier { get; init; } = 1.0;
+    public required int Count { get; init; }
     public Cost Cost { get; init; } = Cost.Free;
     public int UnlockLevel { get; init; } = 1;
+}
+
+/// <summary>Which of a producer's two upgrade paths an <see cref="Commands.UpgradeProducer"/> buys.</summary>
+public enum UpgradeTrack
+{
+    /// <summary>More jobs can be queued.</summary>
+    Slots,
+    /// <summary>More jobs run at once.</summary>
+    Lanes,
 }
 
 /// <summary>

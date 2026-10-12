@@ -51,7 +51,7 @@ Collector.slnx
 | `Currency` | Spendable balance | coins, gems |
 | `Item` | Anything that can sit in storage | wheat, milk, flour, cheese |
 | `Storage` | Capacity bucket that items are assigned to, with upgrade tiers | silo (crops), barn (goods) |
-| `Producer` | Placeable thing that runs recipes in slots, either all at once (`parallel`) or as a queue (`sequential`) that runs `lanes` jobs at a time, set per tier | field (parallel), chicken coop (parallel), feed mill (sequential), dairy (sequential) |
+| `Producer` | Placeable thing that runs recipes: a queue of `slots`, of which `lanes` run at once; slots and lanes are separate per-placement upgrade paths | field (1 slot, 1 lane), chicken coop (3 and 3), feed mill (3 slots, 1 lane) |
 | `Recipe` | Inputs → outputs over a duration, plus XP | `plant_wheat`: 1 wheat → 2 wheat, 2 min |
 | `Upgrade` | Tiered modifiers on a producer or storage | +1 slot, ×0.9 duration, +25 capacity |
 | `LandParcel` | Purchasable map region with cost and level gate | parcel_n1 |
