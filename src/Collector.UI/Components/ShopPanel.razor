@@ -44,6 +44,17 @@
             </li>
         }
     </ul>
+
+    @if (defs.Content.Upgrades.Count > 0)
+    {
+        <h3 class="panel-heading">Equipment</h3>
+        <ul class="shop">
+            @foreach (var upgrade in defs.Content.Upgrades.OrderBy(u => State.Upgrades.Contains(u.Id)).ThenBy(u => u.UnlockLevel))
+            {
+                <UpgradeRow State="State" Upgrade="upgrade" />
+            }
+        </ul>
+    }
 </section>
 
 @code {

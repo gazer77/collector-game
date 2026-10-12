@@ -21,5 +21,16 @@
   "producer.pig_pen":      { "emoji": "🐖", "tint": "#e8a0a0" },
   "producer.feed_mill":    { "emoji": "⚙️", "tint": "#b08d57" },
   "producer.dairy":        { "emoji": "🏭", "tint": "#a7c7e7" },
-  "producer.smokehouse":   { "emoji": "🔥", "tint": "#8d6e63" }
+  "producer.smokehouse":   { "emoji": "🔥", "tint": "#8d6e63" },
+  "upgrade.watering_can":    { "emoji": "💧" },
+  "upgrade.plow":            { "emoji": "⛏️" },
+  "upgrade.sprinklers":      { "emoji": "🌧️" },
+  "upgrade.tractor":         { "emoji": "🚜" },
+  "upgrade.nesting_boxes":   { "emoji": "🧺" },
+  "upgrade.feed_troughs":    { "emoji": "🪣" },
+  "upgrade.milking_machine": { "emoji": "🔧" },
+  "upgrade.heat_lamps":      { "emoji": "💡" },
+  "upgrade.millstones":      { "emoji": "🪨" },
+  "upgrade.butter_churn":    { "emoji": "🧈" },
+  "upgrade.smoker_racks":    { "emoji": "🪵" }
 }

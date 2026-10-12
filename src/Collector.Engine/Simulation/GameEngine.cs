@@ -46,6 +46,7 @@ public sealed class GameEngine(GameDefinitions definitions)
             UpgradeProducer c => Upgrade(state, c),
             UpgradeStorage c => Upgrade(state, c),
             BuyParcel c => Buy(state, c),
+            BuyUpgrade c => Buy(state, c),
             SellItem c => Sell(state, c),
             BuyItem c => Buy(state, c),
             FillOrder c => Fill(state, c, events),
@@ -149,7 +150,7 @@ public sealed class GameEngine(GameDefinitions definitions)
             return missing;
 
         RemoveItems(state, recipe.Inputs);
-        var duration = (long)Math.Round(recipe.DurationSeconds * MsPerSecond * tier.DurationMultiplier);
+        var duration = DurationOf(state, placement, recipe);
         var startsAt = Math.Max(state.Time, Schedule(placement, state.Time));
         placement.Jobs.Add(new Job { Recipe = recipe.Id, StartsAt = startsAt, EndsAt = startsAt + duration });
         placement.LastRecipe = recipe.Id;
@@ -165,14 +166,31 @@ public sealed class GameEngine(GameDefinitions definitions)
             return CommandResult.Fail(ErrorCode.NotReady, "Nothing is ready to collect yet.");
 
         var collected = new OrdinalDictionary<int>();
+        var bonus = new OrdinalDictionary<int>();
+        var bonusChance = BonusChance(state, placement);
+        // Roll on a copy so a collect that fails outright leaves the state untouched.
+        var rngState = state.RngState;
+        var rng = new DeterministicRandom(ref rngState);
         long xp = 0;
         foreach (var job in ready)
         {
             var recipe = Definitions.Recipes[job.Recipe];
             if (!Fits(state, recipe.Outputs))
                 break;
-            AddItems(state, recipe.Outputs);
-            foreach (var (item, qty) in recipe.Outputs)
+            IReadOnlyDictionary<string, int> outputs = recipe.Outputs;
+            if (bonusChance > 0 && rng.NextDouble() < bonusChance)
+            {
+                var withBonus = recipe.Outputs.ToDictionary(kv => kv.Key, kv => kv.Value + 1);
+                // A bonus that wouldn't fit in storage is simply lost; the batch itself still comes in.
+                if (Fits(state, withBonus))
+                {
+                    outputs = withBonus;
+                    foreach (var item in recipe.Outputs.Keys)
+                        bonus[item] = bonus.GetValueOrDefault(item) + 1;
+                }
+            }
+            AddItems(state, outputs);
+            foreach (var (item, qty) in outputs)
                 collected[item] = collected.GetValueOrDefault(item) + qty;
             xp += recipe.Xp;
             placement.Jobs.Remove(job);
@@ -183,7 +201,10 @@ public sealed class GameEngine(GameDefinitions definitions)
             return CommandResult.Fail(ErrorCode.StorageFull, $"Not enough room in your {Definitions.Storage[storage].Name}.");
         }
 
+        state.RngState = rngState;
         events.Add(new ItemsCollected(placement.Id, collected));
+        if (bonus.Count > 0)
+            events.Add(new BonusYield(placement.Id, bonus));
         GainXp(state, xp, events);
         return null;
     }
@@ -225,6 +246,23 @@ public sealed class GameEngine(GameDefinitions definitions)
         Schedule(placement, state.Time);
         return null;
     }
+
+    /// <summary>The owned upgrades that affect <paramref name="placement"/>.</summary>
+    public IEnumerable<UpgradeDefinition> ActiveUpgrades(PlayerState state, Placement placement) =>
+        Definitions.UpgradesFor(placement.Producer).Where(u => state.Upgrades.Contains(u.Id));
+
+    /// <summary>How long <paramref name="recipe"/> takes in <paramref name="placement"/>: its tier speed times every owned upgrade.</summary>
+    public long DurationOf(PlayerState state, Placement placement, RecipeDefinition recipe)
+    {
+        var multiplier = TierOf(placement).DurationMultiplier;
+        foreach (var upgrade in ActiveUpgrades(state, placement))
+            multiplier *= upgrade.DurationMultiplier;
+        return (long)Math.Round(recipe.DurationSeconds * MsPerSecond * multiplier);
+    }
+
+    /// <summary>Chance that a batch collected from <paramref name="placement"/> brings one extra of each output.</summary>
+    public double BonusChance(PlayerState state, Placement placement) =>
+        Math.Min(1, ActiveUpgrades(state, placement).Sum(u => u.BonusChance));
 
     /// <summary>
     /// How many new jobs would start working straight away: lanes not running anything, capped by free queue slots.
@@ -333,6 +371,24 @@ public sealed class GameEngine(GameDefinitions definitions)
 
         RemoveItems(state, toSell);
         Credit(state, market.SellCurrency, item.SellPrice * c.Quantity);
+        return null;
+    }
+
+    private CommandResult? Buy(PlayerState state, BuyUpgrade c)
+    {
+        if (!Definitions.Upgrades.TryGetValue(c.Upgrade, out var upgrade))
+            return Unknown("upgrade", c.Upgrade);
+        if (state.Upgrades.Contains(upgrade.Id))
+            return CommandResult.Fail(ErrorCode.InvalidCommand, $"You already have the {upgrade.Name}.");
+        if (state.Level < upgrade.UnlockLevel)
+            return Locked(upgrade.Name, upgrade.UnlockLevel);
+        if (upgrade.Requires is { } required && !state.Upgrades.Contains(required))
+            return CommandResult.Fail(ErrorCode.Locked, $"Get the {Definitions.Upgrades[required].Name} first.");
+        if (CheckAffordable(state, upgrade.Cost) is { } cantAfford)
+            return cantAfford;
+
+        Pay(state, upgrade.Cost);
+        state.Upgrades.Add(upgrade.Id);
         return null;
     }
 

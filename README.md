@@ -42,4 +42,4 @@ Settings live under `Collector` in `appsettings.json` (or environment variables 
 
 ## Editing the farm
 
-Everything about the farm — crops, animals, buildings, prices, timers, levels, land — is in `packs/farm/*.json`. Restart the server after editing; it refuses to start and lists the problems if a pack is invalid.
+Everything about the farm — crops, animals, buildings, prices, timers, levels, land, equipment — is in `packs/farm/*.json`. Equipment (`upgrades.json`) is bought once and applies to named producers or whole categories: `durationMultiplier` speeds up jobs started afterwards, `bonusChance` gives a chance of one extra of each output per collected batch. Restart the server after editing; it refuses to start and lists the problems if a pack is invalid.

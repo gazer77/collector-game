@@ -633,6 +633,13 @@ button { font: inherit; color: inherit; }
     white-space: nowrap;
 }
 
+.owned-note {
+    font-size: var(--step--1);
+    font-weight: 700;
+    color: var(--hedge);
+    white-space: nowrap;
+}
+
 .buy-actions {
     display: flex;
     gap: 0.375rem;

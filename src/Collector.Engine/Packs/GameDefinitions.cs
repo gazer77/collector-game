@@ -24,6 +24,7 @@ public sealed class GameDefinitions
         Producers = content.Producers.ToDictionary(p => p.Id);
         Recipes = content.Recipes.ToDictionary(r => r.Id);
         Parcels = content.Land.Parcels.ToDictionary(p => p.Id);
+        Upgrades = content.Upgrades.ToDictionary(u => u.Id);
         Levels = [.. content.Levels.OrderBy(l => l.Level)];
         _recipesByProducer = content.Recipes
             .GroupBy(r => r.Producer)
@@ -47,9 +48,14 @@ public sealed class GameDefinitions
     public IReadOnlyDictionary<string, ProducerDefinition> Producers { get; }
     public IReadOnlyDictionary<string, RecipeDefinition> Recipes { get; }
     public IReadOnlyDictionary<string, ParcelDefinition> Parcels { get; }
+    public IReadOnlyDictionary<string, UpgradeDefinition> Upgrades { get; }
 
     /// <summary>Levels in ascending order.</summary>
     public IReadOnlyList<LevelDefinition> Levels { get; }
+
+    /// <summary>Upgrades that affect <paramref name="producerId"/>, in pack order.</summary>
+    public IEnumerable<UpgradeDefinition> UpgradesFor(string producerId) =>
+        Content.Upgrades.Where(u => u.AppliesTo(Producers[producerId]));
 
     public IReadOnlyList<RecipeDefinition> RecipesFor(string producerId) =>
         _recipesByProducer.TryGetValue(producerId, out var list) ? list : [];

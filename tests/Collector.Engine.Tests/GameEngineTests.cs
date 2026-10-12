@@ -337,6 +337,80 @@ public class GameEngineTests
     }
 
     [Fact]
+    public void Upgrades_check_level_prerequisites_and_cost()
+    {
+        var state = NewGame();
+        Fails(state, new BuyUpgrade("watering_can"), ErrorCode.Locked);   // level 2
+        Fails(state, new BuyUpgrade("hoverboard"), ErrorCode.UnknownDefinition);
+
+        state.Level = 5;
+        state.Wallet["coins"] = 2000;
+        Fails(state, new BuyUpgrade("sprinklers"), ErrorCode.Locked);     // needs the watering can
+        Ok(state, new BuyUpgrade("watering_can"));
+        Fails(state, new BuyUpgrade("watering_can"), ErrorCode.InvalidCommand);
+        Ok(state, new BuyUpgrade("sprinklers"));
+        Assert.Equal(2000 - 250 - 1500, state.Balance("coins"));
+        Fails(state, new BuyUpgrade("plow"), ErrorCode.CannotAfford);
+    }
+
+    [Fact]
+    public void Speed_upgrades_stack_on_new_jobs_for_the_producers_they_name()
+    {
+        var state = NewGame();
+        state.Level = 5;
+        state.Wallet["coins"] = 5000;
+        var field = state.First("field");
+        var mill = state.First("feed_mill");
+        Ok(state, new StartRecipe(field.Id, "grow_wheat"));
+        Assert.Equal(60 * Second, field.Jobs[0].EndsAt);
+
+        Ok(state, new BuyUpgrade("watering_can"));
+        Ok(state, new BuyUpgrade("sprinklers"));
+        Assert.Equal(60 * Second, field.Jobs[0].EndsAt); // already planted: unchanged
+
+        var second = state.Placements.Where(p => p.Producer == "field").ElementAt(1);
+        Ok(state, new StartRecipe(second.Id, "grow_wheat"));
+        Assert.Equal((long)Math.Round(60 * Second * 0.85 * 0.8), second.Jobs[0].EndsAt);
+
+        // Field upgrades don't touch the mill.
+        Ok(state, new StartRecipe(mill.Id, "chicken_feed"));
+        Assert.Equal(180 * Second, mill.Jobs[0].EndsAt);
+    }
+
+    [Fact]
+    public void Bonus_chance_sometimes_adds_one_of_each_output()
+    {
+        var state = NewGame();
+        var field = state.First("field");
+        var rngBefore = state.RngState;
+        Ok(state, new StartRecipe(field.Id, "grow_wheat"));
+        _engine.AdvanceTime(state, 60 * Second);
+        Ok(state, new Collect(field.Id));
+        Assert.Equal(rngBefore, state.RngState); // no bonus upgrades, no rolls
+
+        state.Level = 3;
+        state.Wallet["coins"] = 500;
+        Ok(state, new BuyUpgrade("plow"));
+        Assert.Equal(0.2, _engine.BonusChance(state, field));
+
+        int bonuses = 0, harvests = 200;
+        for (var i = 0; i < harvests; i++)
+        {
+            var before = state.Count("wheat");
+            Ok(state, new StartRecipe(field.Id, "grow_wheat"));
+            _engine.AdvanceTime(state, 60 * Second);
+            var result = _engine.Apply(state, new Collect(field.Id));
+            var gained = state.Count("wheat") - before;
+            var bonus = result.Events.OfType<BonusYield>().SingleOrDefault();
+            Assert.Equal(bonus is null ? 1 : 2, gained); // plant 1, harvest 2 (+1 on a bonus)
+            if (bonus is not null)
+                bonuses++;
+            state.Inventory["wheat"] = 10; // keep the silo from filling
+        }
+        Assert.InRange(bonuses, 20, 60); // ~20% of 200
+    }
+
+    [Fact]
     public void Idle_slots_count_only_what_could_start_now()
     {
         var state = NewGame();

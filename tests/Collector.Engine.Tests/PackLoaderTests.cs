@@ -51,6 +51,21 @@ public class PackLoaderTests
     }
 
     [Fact]
+    public async Task Upgrades_must_target_real_producers_and_have_sane_effects()
+    {
+        var files = TestPacks.FarmFiles();
+        files["upgrades.json"] = """
+            [ { "id": "jetpack", "name": "Jetpack", "producers": ["rocket_silo"], "durationMultiplier": 1.5, "requires": "warp" } ]
+            """;
+
+        var ex = await Assert.ThrowsAsync<PackValidationException>(() => TestPacks.LoadAsync(files));
+
+        Assert.Contains(ex.Errors, e => e.Contains("unknown producer 'rocket_silo'"));
+        Assert.Contains(ex.Errors, e => e.Contains("durationMultiplier"));
+        Assert.Contains(ex.Errors, e => e.Contains("unknown upgrade 'warp'"));
+    }
+
+    [Fact]
     public async Task Malformed_json_is_reported_with_file_name()
     {
         var files = TestPacks.FarmFiles();

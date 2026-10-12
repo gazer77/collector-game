@@ -103,6 +103,37 @@ public sealed record ProducerTier
     public int UnlockLevel { get; init; } = 1;
 }
 
+/// <summary>
+/// Equipment bought once that speeds up, or adds yield to, the recipes of some producers
+/// (a watering can for fields, a milking machine for cows).
+/// </summary>
+public sealed record UpgradeDefinition
+{
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public string Asset { get; init; } = "";
+    public Cost Cost { get; init; } = Cost.Free;
+    public int UnlockLevel { get; init; } = 1;
+
+    /// <summary>Another upgrade that must be owned first (sprinklers after the watering can).</summary>
+    public string? Requires { get; init; }
+
+    /// <summary>Producer ids it applies to.</summary>
+    public List<string> Producers { get; init; } = [];
+
+    /// <summary>Producer categories it applies to, e.g. "field" or "animal".</summary>
+    public List<string> Categories { get; init; } = [];
+
+    /// <summary>Multiplies recipe durations for jobs started after buying it. 0.8 is 20% faster. Stacks multiplicatively.</summary>
+    public double DurationMultiplier { get; init; } = 1.0;
+
+    /// <summary>Chance, per collected batch, of one extra of each output. Chances from several upgrades add up (capped at 1).</summary>
+    public double BonusChance { get; init; }
+
+    public bool AppliesTo(ProducerDefinition producer) =>
+        Producers.Contains(producer.Id) || Categories.Contains(producer.Category);
+}
+
 public sealed record RecipeDefinition
 {
     public required string Id { get; init; }

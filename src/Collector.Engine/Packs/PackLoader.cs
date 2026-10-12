@@ -16,10 +16,10 @@ public static class PackLoader
     public static readonly IReadOnlyList<string> Files =
     [
         ManifestFile, "currencies.json", "items.json", "storage.json", "producers.json",
-        "recipes.json", "levels.json", "land.json", "orders.json", "market.json", AssetManifestFile,
+        "recipes.json", "levels.json", "land.json", "orders.json", "market.json", AssetManifestFile, "upgrades.json",
     ];
 
-    private static readonly HashSet<string> OptionalFiles = ["orders.json", "market.json", AssetManifestFile];
+    private static readonly HashSet<string> OptionalFiles = ["orders.json", "market.json", AssetManifestFile, "upgrades.json"];
 
     /// <exception cref="PackValidationException">Files are missing, malformed or inconsistent.</exception>
     public static async Task<GameDefinitions> LoadAsync(IPackSource source, CancellationToken cancellationToken = default)
@@ -63,6 +63,7 @@ public static class PackLoader
         var orders = Read<OrdersDefinition>("orders.json");
         var market = Read<MarketDefinition>("market.json");
         var assets = Read<Dictionary<string, AssetDefinition>>(AssetManifestFile);
+        var upgrades = Read<List<UpgradeDefinition>>("upgrades.json");
 
         if (errors.Count > 0 || manifest is null || land is null)
             throw new PackValidationException(manifest?.Id ?? "?", errors);
@@ -80,6 +81,7 @@ public static class PackLoader
             Orders = orders,
             Market = market,
             Assets = assets ?? [],
+            Upgrades = upgrades ?? [],
         };
         return new GameDefinitions(content, ComputeHash(texts));
     }

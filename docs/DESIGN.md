@@ -88,7 +88,7 @@ The only way to change state:
 Result Apply(PlayerState state, ICommand cmd, GameContext ctx)   // ctx = definitions + clock + rng
 ```
 
-`PlaceProducer`, `MoveProducer`, `StartRecipe`, `CancelJob`, `Collect`, `FillOrder`, `SellItem`, `BuyItem`, `BuyParcel`, `Upgrade`, `SpeedUp`, `HireWorker`, …
+`PlaceProducer`, `MoveProducer`, `StartRecipe`, `CancelJob`, `Collect`, `FillOrder`, `SellItem`, `BuyItem`, `BuyParcel`, `BuyUpgrade`, `Upgrade`, `SpeedUp`, `HireWorker`, …
 
 Commands are **deterministic**. Randomness comes from a seeded RNG stored in the state, so the client and server compute identical results.
 

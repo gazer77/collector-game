@@ -40,6 +40,9 @@ public sealed record CommandResult
 public abstract record GameEvent;
 
 public sealed record ItemsCollected(int PlacementId, IReadOnlyDictionary<string, int> Items) : GameEvent;
+
+/// <summary>Extra goods from an upgrade's bonus chance, already included in the matching <see cref="ItemsCollected"/>.</summary>
+public sealed record BonusYield(int PlacementId, IReadOnlyDictionary<string, int> Items) : GameEvent;
 public sealed record XpGained(long Amount) : GameEvent;
 public sealed record LevelReached(int Level, IReadOnlyDictionary<string, long> Rewards, IReadOnlyDictionary<string, int> ItemRewards) : GameEvent;
 public sealed record OrderCompleted(int Slot, int OrderId) : GameEvent;

@@ -1,0 +1,15 @@
+[
+  { "id": "watering_can",    "name": "Watering Can",    "asset": "upgrade.watering_can",    "categories": ["field"],         "unlockLevel": 2, "cost": { "currencies": { "coins": 250 } },  "durationMultiplier": 0.85 },
+  { "id": "plow",            "name": "Plow",            "asset": "upgrade.plow",            "categories": ["field"],         "unlockLevel": 3, "cost": { "currencies": { "coins": 500 } },  "bonusChance": 0.2 },
+  { "id": "sprinklers",      "name": "Sprinklers",      "asset": "upgrade.sprinklers",      "categories": ["field"],         "unlockLevel": 5, "cost": { "currencies": { "coins": 1500 } }, "durationMultiplier": 0.8, "requires": "watering_can" },
+  { "id": "tractor",         "name": "Tractor",         "asset": "upgrade.tractor",         "categories": ["field"],         "unlockLevel": 7, "cost": { "currencies": { "coins": 4000 } }, "durationMultiplier": 0.9, "bonusChance": 0.2, "requires": "plow" },
+
+  { "id": "nesting_boxes",   "name": "Nesting Boxes",   "asset": "upgrade.nesting_boxes",   "producers": ["chicken_coop"],   "unlockLevel": 2, "cost": { "currencies": { "coins": 300 } },  "bonusChance": 0.25 },
+  { "id": "feed_troughs",    "name": "Feed Troughs",    "asset": "upgrade.feed_troughs",    "categories": ["animal"],        "unlockLevel": 3, "cost": { "currencies": { "coins": 600 } },  "durationMultiplier": 0.85 },
+  { "id": "milking_machine", "name": "Milking Machine", "asset": "upgrade.milking_machine", "producers": ["cow_pasture"],    "unlockLevel": 4, "cost": { "currencies": { "coins": 900 } },  "durationMultiplier": 0.8, "bonusChance": 0.15 },
+  { "id": "heat_lamps",      "name": "Heat Lamps",      "asset": "upgrade.heat_lamps",      "producers": ["pig_pen"],        "unlockLevel": 6, "cost": { "currencies": { "coins": 1500 } }, "durationMultiplier": 0.85 },
+
+  { "id": "millstones",      "name": "Millstones",      "asset": "upgrade.millstones",      "producers": ["feed_mill"],      "unlockLevel": 3, "cost": { "currencies": { "coins": 500 } },  "durationMultiplier": 0.8 },
+  { "id": "butter_churn",    "name": "Dairy Churn",     "asset": "upgrade.butter_churn",    "producers": ["dairy"],          "unlockLevel": 5, "cost": { "currencies": { "coins": 1200 } }, "durationMultiplier": 0.9, "bonusChance": 0.25 },
+  { "id": "smoker_racks",    "name": "Smoker Racks",    "asset": "upgrade.smoker_racks",    "producers": ["smokehouse"],     "unlockLevel": 7, "cost": { "currencies": { "coins": 2500 } }, "durationMultiplier": 0.8, "bonusChance": 0.15 }
+]

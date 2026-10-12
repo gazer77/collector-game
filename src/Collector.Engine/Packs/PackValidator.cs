@@ -16,7 +16,7 @@ public static class PackValidator
         var currencyIds = UniqueIds(pack.Currencies, c => c.Id, "currencies.json", errors);
         var itemIds = UniqueIds(pack.Items, i => i.Id, "items.json", errors);
         var storageIds = UniqueIds(pack.Storage, s => s.Id, "storage.json", errors);
-        UniqueIds(pack.Producers, p => p.Id, "producers.json", errors);
+        var producerIds = UniqueIds(pack.Producers, p => p.Id, "producers.json", errors);
         UniqueIds(pack.Recipes, r => r.Id, "recipes.json", errors);
         UniqueIds(pack.Land.Parcels, p => p.Id, "land.json", errors);
 
@@ -223,6 +223,27 @@ public static class PackValidator
             Error("market.json", $"sellCurrency '{market.SellCurrency}' is not a currency.");
         if (pack.Market is null && pack.Items.Any(i => i.SellPrice > 0))
             Error("market.json", "Items have sell prices but the pack has no market.json.");
+        var upgradeIds = UniqueIds(pack.Upgrades, u => u.Id, "upgrades.json", errors);
+        var categories = pack.Producers.Select(p => p.Category).ToHashSet();
+        foreach (var upgrade in pack.Upgrades)
+        {
+            var owner = $"Upgrade '{upgrade.Id}'";
+            CheckAsset("upgrades.json", owner, upgrade.Asset);
+            CheckCost("upgrades.json", owner, upgrade.Cost);
+            if (upgrade.Producers.Count == 0 && upgrade.Categories.Count == 0)
+                Error("upgrades.json", $"{owner} must name producers or categories to apply to.");
+            foreach (var producer in upgrade.Producers.Where(p => !producerIds.Contains(p)))
+                Error("upgrades.json", $"{owner} names unknown producer '{producer}'.");
+            foreach (var category in upgrade.Categories.Where(c => !categories.Contains(c)))
+                Error("upgrades.json", $"{owner} names category '{category}', which no producer has.");
+            if (upgrade.Requires is { } required && (required == upgrade.Id || !upgradeIds.Contains(required)))
+                Error("upgrades.json", $"{owner} requires unknown upgrade '{required}'.");
+            if (upgrade.DurationMultiplier is <= 0 or > 1)
+                Error("upgrades.json", $"{owner} durationMultiplier must be above 0 and at most 1.");
+            if (upgrade.BonusChance is < 0 or > 1)
+                Error("upgrades.json", $"{owner} bonusChance must be between 0 and 1.");
+        }
+
         if (pack.Market is { } m)
         {
             var buyCurrency = m.BuyCurrency ?? m.SellCurrency;

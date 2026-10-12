@@ -84,7 +84,7 @@
                                 <span class="visually-hidden">@defs.Items[input.Key].Name</span>
                             </span>
                         }
-                        <span class="recipe-time">@Display.Duration((long)(recipe.DurationSeconds * 1000 * tier.DurationMultiplier))</span>
+                        <span class="recipe-time">@Display.Duration(engine.DurationOf(State, placement, recipe))</span>
                     </span>
                     @if (Session.OrderDemand(output.Key) is > 0 and var wanted)
                     {
@@ -112,6 +112,17 @@
             </li>
         }
     </ul>
+
+    @if (defs.UpgradesFor(producer.Id).ToList() is { Count: > 0 } upgrades)
+    {
+        <h3 class="panel-heading">Equipment</h3>
+        <ul class="shop">
+            @foreach (var upgrade in upgrades)
+            {
+                <UpgradeRow State="State" Upgrade="upgrade" />
+            }
+        </ul>
+    }
 
     <div class="actions actions-secondary">
         @if (nextTier is not null)

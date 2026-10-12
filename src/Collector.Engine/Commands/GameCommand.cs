@@ -13,6 +13,7 @@ namespace Collector.Engine.Commands;
 [JsonDerivedType(typeof(UpgradeProducer), "upgradeProducer")]
 [JsonDerivedType(typeof(UpgradeStorage), "upgradeStorage")]
 [JsonDerivedType(typeof(BuyParcel), "buyParcel")]
+[JsonDerivedType(typeof(BuyUpgrade), "buyUpgrade")]
 [JsonDerivedType(typeof(SellItem), "sellItem")]
 [JsonDerivedType(typeof(BuyItem), "buyItem")]
 [JsonDerivedType(typeof(FillOrder), "fillOrder")]
@@ -35,6 +36,7 @@ public sealed record SpeedUp(int PlacementId) : GameCommand;
 public sealed record UpgradeProducer(int PlacementId) : GameCommand;
 public sealed record UpgradeStorage(string Storage) : GameCommand;
 public sealed record BuyParcel(string Parcel) : GameCommand;
+public sealed record BuyUpgrade(string Upgrade) : GameCommand;
 public sealed record SellItem(string Item, int Quantity) : GameCommand;
 
 /// <summary>Buys goods from the market at its buy price, for when you're short of seed or an order's items.</summary>

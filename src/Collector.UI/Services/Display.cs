@@ -21,6 +21,26 @@ public static class Display
     public static string? Tint(this GameDefinitions defs, string assetKey) =>
         defs.Assets.TryGetValue(assetKey, out var asset) ? asset.Tint : null;
 
+    /// <summary>"15% faster · 20% chance of +1".</summary>
+    public static string Effects(UpgradeDefinition upgrade)
+    {
+        var parts = new List<string>();
+        if (upgrade.DurationMultiplier < 1)
+            parts.Add($"{Math.Round((1 - upgrade.DurationMultiplier) * 100)}% faster");
+        if (upgrade.BonusChance > 0)
+            parts.Add($"{Math.Round(upgrade.BonusChance * 100)}% chance of +1");
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>What an upgrade applies to: "all fields", "Chicken Coop".</summary>
+    public static string Targets(GameDefinitions defs, UpgradeDefinition upgrade) =>
+        string.Join(", ", upgrade.Categories.Select(c => c switch
+        {
+            "field" => "all fields",
+            "animal" => "all animals",
+            _ => $"all {c}s",
+        }).Concat(upgrade.Producers.Select(p => defs.Producers[p].Name)));
+
     public static IEnumerable<(string Asset, string Name, long Amount)> Lines(this GameDefinitions defs, Cost cost) =>
         cost.Currencies.Where(c => c.Value > 0).Select(c => (defs.Currencies[c.Key].Asset, defs.Currencies[c.Key].Name, c.Value))
             .Concat(cost.Items.Where(i => i.Value > 0).Select(i => (defs.Items[i.Key].Asset, defs.Items[i.Key].Name, (long)i.Value)));

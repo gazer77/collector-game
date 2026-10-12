@@ -25,6 +25,10 @@ public sealed class PlayerState
     public OrdinalDictionary<int> Inventory { get; set; } = new();
     public OrdinalDictionary<int> StorageTiers { get; set; } = new();
     public List<string> OwnedParcels { get; set; } = [];
+
+    /// <summary>Upgrades bought, in purchase order.</summary>
+    public List<string> Upgrades { get; set; } = [];
+
     public List<Placement> Placements { get; set; } = [];
     public List<OrderSlot> Orders { get; set; } = [];
 

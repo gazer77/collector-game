@@ -306,6 +306,11 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
             {
                 Toasted?.Invoke(new Toast("Order delivered."));
             }
+            else if (e is BonusYield bonus)
+            {
+                var items = bonus.Items.Select(i => $"+{i.Value} {Definitions.Items[i.Key].Name}");
+                Toasted?.Invoke(new Toast($"Bonus! {string.Join(", ", items)}"));
+            }
         }
     }
 

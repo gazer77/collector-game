@@ -1,0 +1,42 @@
+@inject GameSession Session
+
+@{
+    var defs = Session.Definitions;
+    var owned = State.Upgrades.Contains(Upgrade.Id);
+    var locked = State.Level < Upgrade.UnlockLevel;
+    var needs = Upgrade.Requires is { } required && !State.Upgrades.Contains(required) ? defs.Upgrades[required] : null;
+}
+<li class="shop-row @(locked || needs is not null ? "is-locked" : "")">
+    <span class="stock-glyph" aria-hidden="true">@defs.Emoji(Upgrade.Asset)</span>
+    <div class="shop-body">
+        <span class="shop-name">@Upgrade.Name</span>
+        <span class="shop-detail">@Display.Effects(Upgrade) · @Display.Targets(defs, Upgrade)</span>
+    </div>
+    @if (owned)
+    {
+        <span class="owned-note">Owned</span>
+    }
+    else if (locked)
+    {
+        <span class="locked-note">Level @Upgrade.UnlockLevel</span>
+    }
+    else if (needs is not null)
+    {
+        <span class="locked-note">Needs @needs.Name</span>
+    }
+    else
+    {
+        <button class="btn btn-small" @onclick="() => Session.Do(new BuyUpgrade(Upgrade.Id))">
+            Buy
+            @foreach (var line in defs.Lines(Upgrade.Cost))
+            {
+                <span class="cost"><span aria-hidden="true">@defs.Emoji(line.Asset)</span>@line.Amount.ToString("N0")</span>
+            }
+        </button>
+    }
+</li>
+
+@code {
+    [Parameter, EditorRequired] public PlayerState State { get; set; } = null!;
+    [Parameter, EditorRequired] public UpgradeDefinition Upgrade { get; set; } = null!;
+}

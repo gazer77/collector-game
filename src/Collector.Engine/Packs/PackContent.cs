@@ -16,4 +16,5 @@ public sealed record PackContent
     public OrdersDefinition? Orders { get; init; }
     public MarketDefinition? Market { get; init; }
     public Dictionary<string, AssetDefinition> Assets { get; init; } = [];
+    public List<UpgradeDefinition> Upgrades { get; init; } = [];
 }
