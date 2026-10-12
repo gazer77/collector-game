@@ -32,6 +32,11 @@ public sealed class PlayerState
     public OrdinalDictionary<int> StorageTiers { get; set; } = new();
     public List<string> OwnedParcels { get; set; } = [];
 
+    /// <summary>
+    /// How fast production runs: every recipe takes its normal time divided by this. A player setting, 1 by default.
+    /// </summary>
+    public double Pace { get; set; } = 1;
+
     /// <summary>Upgrades bought, in purchase order.</summary>
     public List<string> Upgrades { get; set; } = [];
 

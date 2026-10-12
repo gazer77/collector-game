@@ -20,6 +20,7 @@ namespace Collector.Engine.Commands;
 [JsonDerivedType(typeof(FillOrder), "fillOrder")]
 [JsonDerivedType(typeof(DiscardOrder), "discardOrder")]
 [JsonDerivedType(typeof(EndTurn), "endTurn")]
+[JsonDerivedType(typeof(SetPace), "setPace")]
 public abstract record GameCommand;
 
 public sealed record PlaceProducer(string Producer, int X, int Y) : GameCommand;
@@ -45,6 +46,9 @@ public sealed record SellItem(string Item, int Quantity) : GameCommand;
 public sealed record BuyItem(string Item, int Quantity) : GameCommand;
 public sealed record FillOrder(int Slot) : GameCommand;
 public sealed record DiscardOrder(int Slot) : GameCommand;
+
+/// <summary>Changes how fast production runs (see <see cref="State.PlayerState.Pace"/>). Jobs already underway speed up or slow down too.</summary>
+public sealed record SetPace(double Pace) : GameCommand;
 
 /// <summary>Turn-mode packs only: advances the clock by one turn.</summary>
 public sealed record EndTurn : GameCommand;

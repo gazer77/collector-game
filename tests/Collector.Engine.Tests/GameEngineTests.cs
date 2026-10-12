@@ -126,6 +126,44 @@ public class GameEngineTests
     }
 
     [Fact]
+    public void Pace_scales_new_jobs_and_what_is_left_of_jobs_underway()
+    {
+        var state = NewGame();
+        var mill = state.First("feed_mill");
+        Ok(state, new StartRecipe(mill.Id, "chicken_feed"));   // 0 → 180
+        Ok(state, new StartRecipe(mill.Id, "chicken_feed"));   // 180 → 360
+        _engine.AdvanceTime(state, 60 * Second);
+
+        Ok(state, new SetPace(2));
+
+        Assert.Equal(2, state.Pace);
+        Assert.Equal(0, mill.Jobs[0].StartsAt);
+        Assert.Equal(120 * Second, mill.Jobs[0].EndsAt);       // 120 s left became 60
+        Assert.Equal(120 * Second, mill.Jobs[1].StartsAt);     // the queued job moves up...
+        Assert.Equal(210 * Second, mill.Jobs[1].EndsAt);       // ...and takes half as long
+        Assert.Equal(30 * Second, _engine.DurationOf(state, state.First("field"), _engine.Definitions.Recipes["grow_wheat"]));
+
+        Ok(state, new SetPace(1));
+        Assert.Equal(180 * Second, mill.Jobs[0].EndsAt);
+        Assert.Equal(360 * Second, mill.Jobs[1].EndsAt);
+
+        Fails(state, new SetPace(0), ErrorCode.InvalidCommand);
+        Fails(state, new SetPace(GameEngine.MaxPace * 2), ErrorCode.InvalidCommand);
+        Fails(state, new SetPace(double.NaN), ErrorCode.InvalidCommand);
+    }
+
+    [Fact]
+    public void Saves_from_before_pace_run_at_normal_pace()
+    {
+        var json = StateHasher.Serialize(NewGame()).Replace("\"pace\":1,", "");
+        Assert.DoesNotContain("pace", json);
+
+        var state = StateHasher.Deserialize(json);
+
+        Assert.Equal(1, state.Pace);
+    }
+
+    [Fact]
     public void Parallel_producers_run_all_slots_at_once()
     {
         var state = NewGame();

@@ -1,4 +1,5 @@
 @inject GameSession Session
+@using System.Globalization
 
 @{
     var defs = Session.Definitions;
@@ -23,6 +24,15 @@
                 <span class="visually-hidden">@currency.Name</span>
             </span>
         }
+        <label class="pace" title="How fast crops grow and goods are made. Changing it also speeds up or slows down what's already underway.">
+            <span class="pace-label">Pace</span>
+            <select class="pace-select" @onchange="ChangePace">
+                @foreach (var pace in PaceChoices(State.Pace))
+                {
+                    <option value="@pace.ToString(CultureInfo.InvariantCulture)" selected="@(pace == State.Pace)">@Display.Pace(pace)</option>
+                }
+            </select>
+        </label>
         @if (Session.IsOffline)
         {
             <span class="offline" role="status">Offline</span>
@@ -32,4 +42,16 @@
 
 @code {
     [Parameter, EditorRequired] public PlayerState State { get; set; } = null!;
+
+    private static readonly double[] Paces = [0.5, 1, 2, 4, 10];
+
+    /// <summary>The usual choices, plus the current pace if it is something else.</summary>
+    private static IEnumerable<double> PaceChoices(double current) =>
+        Paces.Contains(current) ? Paces : Paces.Append(current).Order();
+
+    private void ChangePace(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var pace))
+            Session.Do(new SetPace(pace));
+    }
 }

@@ -14,6 +14,9 @@ public sealed class GameEngine(GameDefinitions definitions)
 {
     private const long MsPerSecond = 1000;
 
+    /// <summary>The slowest and fastest production pace a player may choose.</summary>
+    public const double MinPace = 0.25, MaxPace = 10;
+
     public GameDefinitions Definitions { get; } = definitions;
 
     public PlayerState NewGame(ulong seed)
@@ -52,6 +55,7 @@ public sealed class GameEngine(GameDefinitions definitions)
             FillOrder c => Fill(state, c, events),
             DiscardOrder c => Discard(state, c, events),
             EndTurn => Turn(state, events),
+            SetPace c => ChangePace(state, c),
             _ => CommandResult.Fail(ErrorCode.InvalidCommand, $"Unsupported command {command.GetType().Name}."),
         };
         if (failure is not null)
@@ -263,13 +267,13 @@ public sealed class GameEngine(GameDefinitions definitions)
     public IEnumerable<UpgradeDefinition> ActiveUpgrades(PlayerState state, Placement placement) =>
         Definitions.UpgradesFor(placement.Producer).Where(u => state.Upgrades.Contains(u.Id));
 
-    /// <summary>How long <paramref name="recipe"/> takes in <paramref name="placement"/>, after every owned upgrade.</summary>
+    /// <summary>How long <paramref name="recipe"/> takes in <paramref name="placement"/>, after every owned upgrade and the player's pace.</summary>
     public long DurationOf(PlayerState state, Placement placement, RecipeDefinition recipe)
     {
         var multiplier = 1.0;
         foreach (var upgrade in ActiveUpgrades(state, placement))
             multiplier *= upgrade.DurationMultiplier;
-        return (long)Math.Round(recipe.DurationSeconds * MsPerSecond * multiplier);
+        return (long)Math.Round(recipe.DurationSeconds * MsPerSecond * multiplier / state.Pace);
     }
 
     /// <summary>Chance that a batch collected from <paramref name="placement"/> brings one extra of each output.</summary>
@@ -461,6 +465,30 @@ public sealed class GameEngine(GameDefinitions definitions)
 
         state.Orders[c.Slot] = new OrderSlot { AvailableAt = state.Time + orders.DiscardCooldownSeconds * MsPerSecond };
         RefillOrders(state, events);
+        return null;
+    }
+
+    private CommandResult? ChangePace(PlayerState state, SetPace c)
+    {
+        if (!double.IsFinite(c.Pace) || c.Pace < MinPace || c.Pace > MaxPace)
+            return CommandResult.Fail(ErrorCode.InvalidCommand, $"Pace must be between {MinPace} and {MaxPace}.");
+        if (c.Pace == state.Pace)
+            return null;
+
+        // Work already underway keeps the progress it has made: what's left of each job is stretched or squeezed.
+        var scale = state.Pace / c.Pace;
+        foreach (var placement in state.Placements)
+        {
+            foreach (var job in placement.Jobs)
+            {
+                if (job.IsReady(state.Time))
+                    continue;
+                var from = Math.Max(job.StartsAt, state.Time);
+                job.EndsAt = from + (long)Math.Round((job.EndsAt - from) * scale);
+            }
+            Schedule(placement, state.Time);
+        }
+        state.Pace = c.Pace;
         return null;
     }
 

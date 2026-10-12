@@ -15,6 +15,14 @@ public static class Display
         return $"{t.Minutes}:{t.Seconds:00}";
     }
 
+    /// <summary>A production pace as a speed, e.g. "2×" or "½×".</summary>
+    public static string Pace(double pace) => pace switch
+    {
+        0.25 => "¼×",
+        0.5 => "½×",
+        _ => pace.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "×",
+    };
+
     public static string Emoji(this GameDefinitions defs, string assetKey) =>
         defs.Assets.TryGetValue(assetKey, out var asset) && asset.Emoji is { } emoji ? emoji : "❔";
 

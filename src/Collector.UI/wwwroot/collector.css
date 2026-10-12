@@ -203,6 +203,27 @@ button { font: inherit; color: inherit; }
     font-variant-numeric: tabular-nums;
 }
 
+.pace {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: var(--step--1);
+    color: rgb(243 247 238 / 0.8);
+}
+
+.pace-select {
+    font: inherit;
+    font-weight: 700;
+    color: #F3F7EE;
+    background: rgb(255 255 255 / 0.12);
+    border: 1px solid rgb(255 255 255 / 0.25);
+    border-radius: 999px;
+    padding: 0.15rem 0.5rem;
+    cursor: pointer;
+}
+
+.pace-select option { color: var(--hedge); background: #F3F7EE; }
+
 .offline {
     padding: 0.125rem 0.5rem;
     border-radius: 999px;
@@ -215,6 +236,7 @@ button { font: inherit; color: inherit; }
     .farm-name { display: none; }
     .xp-track { width: 4.5rem; }
     .wallet { margin-left: auto; gap: 0.75rem; }
+    .pace-label { display: none; }
 }
 
 /* ---------- Map ---------- */
