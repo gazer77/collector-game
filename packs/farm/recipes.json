@@ -3,15 +3,15 @@
   { "id": "grow_corn",    "name": "Corn",         "producer": "field",        "inputs": { "corn": 1 },              "outputs": { "corn": 2 },         "durationSeconds": 150,  "xp": 2, "unlockLevel": 2, "hotkey": "c" },
   { "id": "grow_carrot",  "name": "Carrot",       "producer": "field",        "inputs": { "carrot": 1 },            "outputs": { "carrot": 2 },       "durationSeconds": 225,  "xp": 3, "unlockLevel": 3, "hotkey": "a" },
 
-  { "id": "chicken_feed", "name": "Chicken Feed", "producer": "feed_mill",    "inputs": { "wheat": 2 },             "outputs": { "chicken_feed": 3 }, "durationSeconds": 180,  "xp": 1, "unlockLevel": 1 },
-  { "id": "cow_feed",     "name": "Cow Feed",     "producer": "feed_mill",    "inputs": { "corn": 2, "wheat": 1 },  "outputs": { "cow_feed": 3 },     "durationSeconds": 300,  "xp": 2, "unlockLevel": 3 },
-  { "id": "pig_feed",     "name": "Pig Feed",     "producer": "feed_mill",    "inputs": { "carrot": 2, "corn": 1 }, "outputs": { "pig_feed": 3 },     "durationSeconds": 420,  "xp": 3, "unlockLevel": 5 },
+  { "id": "chicken_feed", "name": "Chicken Feed", "producer": "feed_mill",    "inputs": { "wheat": 2 },             "outputs": { "chicken_feed": 3 }, "durationSeconds": 180,  "xp": 1, "unlockLevel": 1, "hotkey": "f" },
+  { "id": "cow_feed",     "name": "Cow Feed",     "producer": "feed_mill",    "inputs": { "corn": 2, "wheat": 1 },  "outputs": { "cow_feed": 3 },     "durationSeconds": 300,  "xp": 2, "unlockLevel": 3, "hotkey": "o" },
+  { "id": "pig_feed",     "name": "Pig Feed",     "producer": "feed_mill",    "inputs": { "carrot": 2, "corn": 1 }, "outputs": { "pig_feed": 3 },     "durationSeconds": 420,  "xp": 3, "unlockLevel": 5, "hotkey": "g" },
 
-  { "id": "lay_egg",      "name": "Egg",          "producer": "chicken_coop", "inputs": { "chicken_feed": 1 },      "outputs": { "egg": 1 },          "durationSeconds": 300,  "xp": 2, "unlockLevel": 1 },
-  { "id": "milk_cow",     "name": "Milk",         "producer": "cow_pasture",  "inputs": { "cow_feed": 1 },          "outputs": { "milk": 1 },         "durationSeconds": 900,  "xp": 3, "unlockLevel": 3 },
-  { "id": "raise_pig",    "name": "Pork",         "producer": "pig_pen",      "inputs": { "pig_feed": 1 },          "outputs": { "pork": 1 },         "durationSeconds": 1800, "xp": 5, "unlockLevel": 5 },
+  { "id": "lay_egg",      "name": "Egg",          "producer": "chicken_coop", "inputs": { "chicken_feed": 1 },      "outputs": { "egg": 1 },          "durationSeconds": 300,  "xp": 2, "unlockLevel": 1, "hotkey": "e" },
+  { "id": "milk_cow",     "name": "Milk",         "producer": "cow_pasture",  "inputs": { "cow_feed": 1 },          "outputs": { "milk": 1 },         "durationSeconds": 900,  "xp": 3, "unlockLevel": 3, "hotkey": "m" },
+  { "id": "raise_pig",    "name": "Pork",         "producer": "pig_pen",      "inputs": { "pig_feed": 1 },          "outputs": { "pork": 1 },         "durationSeconds": 1800, "xp": 5, "unlockLevel": 5, "hotkey": "p" },
 
-  { "id": "make_cream",   "name": "Cream",        "producer": "dairy",        "inputs": { "milk": 2 },              "outputs": { "cream": 1 },        "durationSeconds": 600,  "xp": 4, "unlockLevel": 4 },
-  { "id": "make_cheese",  "name": "Cheese",       "producer": "dairy",        "inputs": { "milk": 3 },              "outputs": { "cheese": 1 },       "durationSeconds": 1200, "xp": 6, "unlockLevel": 5 },
-  { "id": "smoke_bacon",  "name": "Bacon",        "producer": "smokehouse",   "inputs": { "pork": 2 },              "outputs": { "bacon": 1 },        "durationSeconds": 1800, "xp": 8, "unlockLevel": 6 }
+  { "id": "make_cream",   "name": "Cream",        "producer": "dairy",        "inputs": { "milk": 2 },              "outputs": { "cream": 1 },        "durationSeconds": 600,  "xp": 4, "unlockLevel": 4, "hotkey": "i" },
+  { "id": "make_cheese",  "name": "Cheese",       "producer": "dairy",        "inputs": { "milk": 3 },              "outputs": { "cheese": 1 },       "durationSeconds": 1200, "xp": 6, "unlockLevel": 5, "hotkey": "h" },
+  { "id": "smoke_bacon",  "name": "Bacon",        "producer": "smokehouse",   "inputs": { "pork": 2 },              "outputs": { "bacon": 1 },        "durationSeconds": 1800, "xp": 8, "unlockLevel": 6, "hotkey": "b" }
 ]
