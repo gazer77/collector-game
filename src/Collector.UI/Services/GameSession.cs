@@ -119,6 +119,10 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
         return Do(new StartRecipe(target.Id, target.LastRecipe ?? latest)).Ok ? target.Id : null;
     }
 
+    /// <summary>How many of <paramref name="itemId"/> the open orders ask for, in total.</summary>
+    public int OrderDemand(string itemId) =>
+        State.Orders.Sum(slot => slot.Order is { } order ? order.Items.GetValueOrDefault(itemId) : 0);
+
     /// <summary>The market's buy currency, or null if this game can't buy goods.</summary>
     public CurrencyDefinition? BuyCurrency =>
         Definitions.Market is { } market ? Definitions.Currencies[market.BuyCurrency ?? market.SellCurrency] : null;

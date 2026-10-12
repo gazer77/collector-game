@@ -39,7 +39,7 @@
             var ready = placement.Jobs.Count(j => j.IsReady(now));
             var running = placement.Jobs.FirstOrDefault(j => !j.IsReady(now) && j.StartsAt <= now);
             var isField = producer.Category == "field";
-            var free = Session.Engine.TierOf(placement).Slots - placement.Jobs.Count;
+            var free = Session.Engine.IdleSlots(State, placement);
             var glyph = isField && placement.Jobs.Count > 0
                 ? defs.Emoji(defs.Items[defs.Recipes[placement.Jobs[0].Recipe].Outputs.Keys.First()].Asset)
                 : defs.Emoji(producer.Asset);

@@ -298,6 +298,29 @@ public class GameEngineTests
     }
 
     [Fact]
+    public void Idle_slots_count_only_what_could_start_now()
+    {
+        var state = NewGame();
+        var mill = state.First("feed_mill");
+        Assert.Equal(1, _engine.IdleSlots(state, mill)); // one lane, three queue slots
+
+        Ok(state, new StartRecipe(mill.Id, "chicken_feed"));
+        Assert.Equal(0, _engine.IdleSlots(state, mill)); // queue has room, but the lane is busy
+
+        _engine.AdvanceTime(state, 180 * Second);
+        Assert.Equal(1, _engine.IdleSlots(state, mill)); // finished, uncollected goods don't hold the lane
+
+        // Parallel producers: every empty slot can start, and uncollected goods still fill theirs.
+        Ok(state, new PlaceProducer("chicken_coop", 6, 4));
+        var coop = state.First("chicken_coop");
+        Ok(state, new Collect(mill.Id));
+        Ok(state, new StartRecipe(coop.Id, "lay_egg"));
+        Assert.Equal(2, _engine.IdleSlots(state, coop));
+        _engine.AdvanceTime(state, 300 * Second);
+        Assert.Equal(2, _engine.IdleSlots(state, coop));
+    }
+
+    [Fact]
     public void A_second_feed_mill_unlocks_at_level_four()
     {
         var state = NewGame();

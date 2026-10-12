@@ -79,6 +79,11 @@
                         }
                         <span class="recipe-time">@Display.Duration((long)(recipe.DurationSeconds * 1000 * tier.DurationMultiplier))</span>
                     </span>
+                    @if (Session.OrderDemand(output.Key) is > 0 and var wanted)
+                    {
+                        var have = State.Count(output.Key);
+                        <span class="recipe-demand @(have >= wanted ? "is-met" : "")">Orders want @wanted · have @have</span>
+                    }
                 </div>
                 @if (locked)
                 {

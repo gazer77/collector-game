@@ -600,6 +600,20 @@ button { font: inherit; color: inherit; }
 
 .recipe-time { font-variant-numeric: tabular-nums; }
 
+.recipe-demand {
+    align-self: flex-start;
+    margin-top: 0.25rem;
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--straw) 35%, transparent);
+    color: var(--text);
+    font-size: var(--step--1);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.recipe-demand.is-met { background: rgb(125 179 86 / 0.2); }
+
 .stock-count {
     font-family: var(--font-display);
     font-weight: 700;

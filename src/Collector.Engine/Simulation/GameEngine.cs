@@ -205,6 +205,16 @@ public sealed class GameEngine(GameDefinitions definitions)
         return null;
     }
 
+    /// <summary>
+    /// How many new jobs would start working straight away: lanes not running anything, capped by free queue slots.
+    /// For parallel producers that is simply the empty slots.
+    /// </summary>
+    public int IdleSlots(PlayerState state, Placement placement)
+    {
+        var running = placement.Jobs.Count(j => j.StartsAt <= state.Time && !j.IsReady(state.Time));
+        return Math.Max(0, Math.Min(LanesOf(placement) - running, TierOf(placement).Slots - placement.Jobs.Count));
+    }
+
     /// <summary>How many of a placement's jobs run at once: every slot for parallel producers, the tier's lanes for queues.</summary>
     public int LanesOf(Placement placement)
     {
