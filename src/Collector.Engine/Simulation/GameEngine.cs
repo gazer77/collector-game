@@ -41,6 +41,7 @@ public sealed class GameEngine(GameDefinitions definitions)
             MoveProducer c => Move(state, c),
             StartRecipe c => Start(state, c),
             Collect c => CollectJobs(state, c, events),
+            CancelJob c => Cancel(state, c),
             SpeedUp c => Speed(state, c),
             UpgradeProducer c => Upgrade(state, c),
             UpgradeStorage c => Upgrade(state, c),
@@ -184,6 +185,26 @@ public sealed class GameEngine(GameDefinitions definitions)
 
         events.Add(new ItemsCollected(placement.Id, collected));
         GainXp(state, xp, events);
+        return null;
+    }
+
+    private CommandResult? Cancel(PlayerState state, CancelJob c)
+    {
+        if (state.FindPlacement(c.PlacementId) is not { } placement)
+            return NoPlacement(c.PlacementId);
+        if (c.Index < 0 || c.Index >= placement.Jobs.Count)
+            return CommandResult.Fail(ErrorCode.NotFound, "There's no job in that queue position.");
+        var job = placement.Jobs[c.Index];
+        if (job.StartsAt <= state.Time)
+            return CommandResult.Fail(ErrorCode.InvalidCommand, "Only jobs that haven't started can be cancelled.");
+        var inputs = Definitions.Recipes[job.Recipe].Inputs;
+        if (!Fits(state, inputs))
+            return CommandResult.Fail(ErrorCode.StorageFull, "There's no room in storage to take the ingredients back.");
+
+        placement.Jobs.RemoveAt(c.Index);
+        AddItems(state, inputs);
+        // Anything queued behind it moves up.
+        Schedule(placement, state.Time);
         return null;
     }
 

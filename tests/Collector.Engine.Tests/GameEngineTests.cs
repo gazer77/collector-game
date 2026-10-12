@@ -298,6 +298,28 @@ public class GameEngineTests
     }
 
     [Fact]
+    public void Cancelling_a_queued_job_refunds_it_and_moves_the_queue_up()
+    {
+        var state = NewGame();
+        var mill = state.First("feed_mill");
+        for (var i = 0; i < 3; i++)
+            Ok(state, new StartRecipe(mill.Id, "chicken_feed"));
+        Assert.Equal(0, state.Count("wheat"));
+
+        Fails(state, new CancelJob(mill.Id, 0), ErrorCode.InvalidCommand); // already running
+        Fails(state, new CancelJob(mill.Id, 3), ErrorCode.NotFound);
+
+        Ok(state, new CancelJob(mill.Id, 1));
+        Assert.Equal(2, state.Count("wheat"));
+        Assert.Equal(2, mill.Jobs.Count);
+        Assert.Equal(180 * Second, mill.Jobs[1].StartsAt); // the third job took the second's place
+        Assert.Equal(360 * Second, mill.Jobs[1].EndsAt);
+
+        state.Inventory["wheat"] = 50; // silo full
+        Fails(state, new CancelJob(mill.Id, 1), ErrorCode.StorageFull);
+    }
+
+    [Fact]
     public void Idle_slots_count_only_what_could_start_now()
     {
         var state = NewGame();

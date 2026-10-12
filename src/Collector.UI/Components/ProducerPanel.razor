@@ -29,8 +29,10 @@
     @if (placement.Jobs.Count > 0)
     {
         <ol class="jobs">
-            @foreach (var job in placement.Jobs)
+            @for (var i = 0; i < placement.Jobs.Count; i++)
             {
+                var index = i;
+                var job = placement.Jobs[index];
                 var recipe = defs.Recipes[job.Recipe];
                 var output = recipe.Outputs.First();
                 <li class="job @(job.IsReady(now) ? "is-ready" : "")">
@@ -41,6 +43,11 @@
                         else if (job.StartsAt > now) { <text>Waiting · @Display.Duration(job.EndsAt - job.StartsAt)</text> }
                         else { @Display.Duration(job.EndsAt - now) }
                     </span>
+                    @if (job.StartsAt > now)
+                    {
+                        <button class="btn btn-quiet btn-small" @onclick="() => Session.Do(new CancelJob(placement.Id, index))"
+                                title="Cancel and get the ingredients back">Cancel</button>
+                    }
                 </li>
             }
         </ol>

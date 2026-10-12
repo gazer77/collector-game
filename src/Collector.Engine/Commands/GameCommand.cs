@@ -8,6 +8,7 @@ namespace Collector.Engine.Commands;
 [JsonDerivedType(typeof(MoveProducer), "moveProducer")]
 [JsonDerivedType(typeof(StartRecipe), "startRecipe")]
 [JsonDerivedType(typeof(Collect), "collect")]
+[JsonDerivedType(typeof(CancelJob), "cancelJob")]
 [JsonDerivedType(typeof(SpeedUp), "speedUp")]
 [JsonDerivedType(typeof(UpgradeProducer), "upgradeProducer")]
 [JsonDerivedType(typeof(UpgradeStorage), "upgradeStorage")]
@@ -25,6 +26,9 @@ public sealed record StartRecipe(int PlacementId, string Recipe) : GameCommand;
 
 /// <summary>Collects every finished job on a placement that fits in storage.</summary>
 public sealed record Collect(int PlacementId) : GameCommand;
+
+/// <summary>Removes a queued job that hasn't started (by its index in the placement's queue) and refunds its inputs.</summary>
+public sealed record CancelJob(int PlacementId, int Index) : GameCommand;
 
 /// <summary>Pays to finish the placement's next unfinished job now.</summary>
 public sealed record SpeedUp(int PlacementId) : GameCommand;
