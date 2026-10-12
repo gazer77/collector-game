@@ -90,15 +90,12 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
     }
 
     /// <summary>
-    /// Plants a field's own last crop again, or the most recently planted crop if the field has none yet.
-    /// Plants <paramref name="selectedId"/> if it's an empty field, otherwise the next empty field after it
-    /// in map order (wrapping round), or the first empty field when nothing is selected.
-    /// Returns the field it planted on.
+    /// Plants a field's own last crop again, or the most recently planted crop if the field has none yet,
+    /// on the field <see cref="NextWithRoom"/> picks. Returns the field it planted on.
     /// </summary>
     public int? Replant(int? selectedId)
     {
-        // Reading order across the map: row by row, left to right.
-        var fields = State.Placements.Where(IsField).OrderBy(f => f.Y).ThenBy(f => f.X).ToList();
+        var fields = State.Placements.Where(IsField).ToList();
         // The newest crop still in the ground, else any crop a field remembers.
         var latest = fields.SelectMany(f => f.Jobs).MaxBy(j => j.StartsAt)?.Recipe
             ?? fields.Select(f => f.LastRecipe).FirstOrDefault(r => r is not null);
@@ -108,15 +105,37 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
             return null;
         }
 
-        bool HasRoom(Placement p) => p.Jobs.Count < Engine.TierOf(p).Slots;
-        var start = Math.Max(0, fields.FindIndex(f => f.Id == selectedId));
-        var target = fields.Skip(start).Concat(fields.Take(start)).FirstOrDefault(HasRoom);
-        if (target is null)
+        if (NextWithRoom(fields, selectedId) is not { } target)
         {
             Toasted?.Invoke(new Toast("Every field is already growing something.", IsError: true));
             return null;
         }
         return Do(new StartRecipe(target.Id, target.LastRecipe ?? latest)).Ok ? target.Id : null;
+    }
+
+    /// <summary>Starts <paramref name="recipeId"/> on the producer <see cref="NextWithRoom"/> picks among those that make it.</summary>
+    public int? StartNext(string recipeId, int? selectedId)
+    {
+        var recipe = Definitions.Recipes[recipeId];
+        var producer = Definitions.Producers[recipe.Producer];
+        if (NextWithRoom(State.Placements.Where(p => p.Producer == producer.Id), selectedId) is not { } target)
+        {
+            Toasted?.Invoke(new Toast(State.Placements.Any(p => p.Producer == producer.Id)
+                ? $"Every {producer.Name} is full." : $"Build a {producer.Name} first.", IsError: true));
+            return null;
+        }
+        return Do(new StartRecipe(target.Id, recipe.Id)).Ok ? target.Id : null;
+    }
+
+    /// <summary>
+    /// The selected placement if it's one of <paramref name="candidates"/> and has room, otherwise the next one with
+    /// room after it in reading order (row by row, left to right, wrapping round), or the first when none is selected.
+    /// </summary>
+    private Placement? NextWithRoom(IEnumerable<Placement> candidates, int? selectedId)
+    {
+        var ordered = candidates.OrderBy(p => p.Y).ThenBy(p => p.X).ToList();
+        var start = Math.Max(0, ordered.FindIndex(p => p.Id == selectedId));
+        return ordered.Skip(start).Concat(ordered.Take(start)).FirstOrDefault(p => p.Jobs.Count < Engine.TierOf(p).Slots);
     }
 
     /// <summary>How many of <paramref name="itemId"/> the open orders ask for, in total.</summary>

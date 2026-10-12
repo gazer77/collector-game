@@ -144,6 +144,9 @@ public sealed record RecipeDefinition
     public required long DurationSeconds { get; init; }
     public long Xp { get; init; }
     public int UnlockLevel { get; init; } = 1;
+
+    /// <summary>Optional single-key shortcut (a letter or digit) that starts this recipe on the next free producer.</summary>
+    public string? Hotkey { get; init; }
 }
 
 public sealed record LevelDefinition

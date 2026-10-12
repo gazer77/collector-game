@@ -142,7 +142,7 @@ public sealed class GameEngine(GameDefinitions definitions)
         if (recipe.Producer != placement.Producer)
             return CommandResult.Fail(ErrorCode.InvalidCommand, $"{recipe.Id} can't be made in {placement.Producer}.");
         if (state.Level < recipe.UnlockLevel)
-            return Locked(recipe.Id, recipe.UnlockLevel);
+            return Locked(string.IsNullOrEmpty(recipe.Name) ? Definitions.Items[recipe.Outputs.Keys.First()].Name : recipe.Name, recipe.UnlockLevel);
         var tier = TierOf(placement);
         if (placement.Jobs.Count >= tier.Slots)
             return CommandResult.Fail(ErrorCode.NoFreeSlot, "No free slot. Collect finished goods first.");

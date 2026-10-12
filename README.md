@@ -18,7 +18,7 @@ dotnet run --project src/Collector.Server --launch-profile http
 
 Then open http://localhost:5128. The server serves the web client, the API and the pack files. On first run it creates `src/Collector.Server/App_Data/` with the SQLite database and a token signing key.
 
-Press **R** to replant a field with the crop it last grew (or your most recent crop, for a field that has none yet): the selected field if it is empty, otherwise the next empty field in reading order. Buildings and pens show how many free slots they have.
+Keyboard: **R** replants a field with the crop it last grew (or your most recent crop, for a field that has none yet), and **W**, **C**, **A** plant wheat, corn and carrots. Each goes to the selected field if it is empty, otherwise the next empty field in reading order. Recipes get shortcuts from `hotkey` in `recipes.json`. Buildings and pens show how many free slots they have.
 
 Each browser gets its own guest farm (a device id kept in localStorage). The game clock only runs while the page is open.
 

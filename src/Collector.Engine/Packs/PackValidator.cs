@@ -114,6 +114,16 @@ public static class PackValidator
                 Error("producers.json", $"{owner} has no recipes.");
         }
 
+        // R is the client's own "replant" key.
+        var hotkeys = new HashSet<string> { "r" };
+        foreach (var recipe in pack.Recipes.Where(r => r.Hotkey is not null))
+        {
+            if (recipe.Hotkey is not { Length: 1 } key || !char.IsAsciiLetterOrDigit(key[0]) || key != key.ToLowerInvariant())
+                Error("recipes.json", $"Recipe '{recipe.Id}' hotkey must be one lowercase letter or digit.");
+            else if (!hotkeys.Add(key))
+                Error("recipes.json", $"Recipe '{recipe.Id}' hotkey '{key}' is already taken.");
+        }
+
         foreach (var recipe in pack.Recipes)
         {
             var owner = $"Recipe '{recipe.Id}'";

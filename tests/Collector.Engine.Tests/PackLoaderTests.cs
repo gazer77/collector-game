@@ -65,6 +65,20 @@ public class PackLoaderTests
         Assert.Contains(ex.Errors, e => e.Contains("unknown upgrade 'warp'"));
     }
 
+    [Theory]
+    [InlineData("\"hotkey\": \"c\"", "\"hotkey\": \"w\"", "already taken")]   // corn steals wheat's key
+    [InlineData("\"hotkey\": \"c\"", "\"hotkey\": \"r\"", "already taken")]   // R is reserved for replant
+    [InlineData("\"hotkey\": \"c\"", "\"hotkey\": \"Co\"", "one lowercase letter or digit")]
+    public async Task Recipe_hotkeys_must_be_single_unique_keys(string find, string replace, string error)
+    {
+        var files = TestPacks.FarmFiles();
+        files["recipes.json"] = files["recipes.json"].Replace(find, replace);
+
+        var ex = await Assert.ThrowsAsync<PackValidationException>(() => TestPacks.LoadAsync(files));
+
+        Assert.Contains(ex.Errors, e => e.Contains(error));
+    }
+
     [Fact]
     public async Task Malformed_json_is_reported_with_file_name()
     {

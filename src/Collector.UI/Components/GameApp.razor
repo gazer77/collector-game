@@ -165,12 +165,10 @@
     {
         if (Session.Status != SessionStatus.Ready)
             return;
-        switch (key)
-        {
-            case "r":
-                Session.Replant(_selected);
-                break;
-        }
+        if (key == "r")
+            Session.Replant(_selected);
+        else if (Session.Definitions.Content.Recipes.Find(r => r.Hotkey == key) is { } recipe)
+            Session.StartNext(recipe.Id, _selected);
     }
 
     public async ValueTask DisposeAsync()
