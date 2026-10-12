@@ -16,6 +16,12 @@ public sealed class PlayerState
     public long Time { get; set; }
 
     public ulong RngState { get; set; }
+
+    /// <summary>
+    /// The highest command sequence number the server has applied. The engine never reads it; the server uses it to
+    /// skip commands a client resends after a lost response, and the client numbers new commands after it.
+    /// </summary>
+    public long LastCommandSeq { get; set; }
     public int NextId { get; set; } = 1;
 
     public int Level { get; set; } = 1;

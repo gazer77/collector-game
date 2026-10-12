@@ -33,6 +33,7 @@ public sealed record CommandResult
 /// <summary>Things that happened as a result of a command, for UI feedback (animations, toasts).</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(ItemsCollected), "itemsCollected")]
+[JsonDerivedType(typeof(BonusYield), "bonusYield")]
 [JsonDerivedType(typeof(XpGained), "xpGained")]
 [JsonDerivedType(typeof(LevelReached), "levelReached")]
 [JsonDerivedType(typeof(OrderCompleted), "orderCompleted")]

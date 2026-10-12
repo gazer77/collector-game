@@ -17,9 +17,14 @@ public class ApiTests : IClassFixture<ServerFixture>
     private static async Task<GameSync> SyncAsync(HttpClient client) =>
         (await client.GetFromJsonAsync<GameSync>(ApiRoutes.Game(Pack), ServerFixture.Json))!;
 
-    private static async Task<CommandBatchResult> SendAsync(HttpClient client, long clientTime, params GameCommand[] commands)
+    // Sequence numbers only ever grow, like a real client's, so the server never mistakes a batch for a resend.
+    private static long _seq;
+
+    private static Task<CommandBatchResult> SendAsync(HttpClient client, long clientTime, params GameCommand[] commands) =>
+        SendAsync(client, new CommandBatch(clientTime, [.. commands.Select(c => new CommandEnvelope(Interlocked.Increment(ref _seq), c))]));
+
+    private static async Task<CommandBatchResult> SendAsync(HttpClient client, CommandBatch batch)
     {
-        var batch = new CommandBatch(clientTime, [.. commands.Select((c, i) => new CommandEnvelope(i + 1, c))]);
         var response = await client.PostAsJsonAsync(ApiRoutes.Commands(Pack), batch, ServerFixture.Json);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<CommandBatchResult>(ServerFixture.Json))!;
@@ -34,6 +39,23 @@ public class ApiTests : IClassFixture<ServerFixture>
 
         var definitions = await Engine.Packs.PackLoader.LoadAsync(new Engine.Packs.MemoryPackSource(bundle!.Files));
         Assert.Equal(bundle.Hash, definitions.Hash);
+    }
+
+    [Fact]
+    public async Task A_resent_batch_is_not_applied_twice()
+    {
+        var client = await _server.GuestAsync(ServerFixture.NewDeviceId());
+        var state = (await SyncAsync(client)).State;
+        var wheat = state.Count("wheat");
+        var batch = new CommandBatch(state.Time, [new CommandEnvelope(Interlocked.Increment(ref _seq), new StartRecipe(Field(state), "grow_wheat"))]);
+
+        var first = await SendAsync(client, batch);
+        var again = await SendAsync(client, batch); // as if the first response was lost
+
+        Assert.True(first.Results[0].Ok);
+        Assert.True(again.Results[0].Ok);
+        Assert.Equal(wheat - 1, again.Sync.State.Count("wheat"));
+        Assert.Equal(batch.Commands[0].Seq, again.Sync.State.LastCommandSeq);
     }
 
     [Fact]

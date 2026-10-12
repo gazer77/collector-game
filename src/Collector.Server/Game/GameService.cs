@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Collector.Contracts;
+using Collector.Engine.Simulation;
 using Collector.Engine.State;
 using Collector.Server.Data;
 using Collector.Server.Packs;
@@ -40,7 +41,14 @@ public sealed class GameService(CollectorDb db, PlayerLocks locks, TimeProvider 
         var results = new List<CommandOutcome>(batch.Commands.Count);
         foreach (var envelope in batch.Commands)
         {
+            // Already applied: the client didn't get our last response and sent the batch again.
+            if (envelope.Seq <= state.LastCommandSeq)
+            {
+                results.Add(new CommandOutcome(envelope.Seq, true, ErrorCode.None, "Already applied.", []));
+                continue;
+            }
             var result = pack.Engine.Apply(state, envelope.Command);
+            state.LastCommandSeq = envelope.Seq;
             results.Add(new CommandOutcome(envelope.Seq, result.Ok, result.Error, result.Message, result.Events));
         }
 

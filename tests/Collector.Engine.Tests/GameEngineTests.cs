@@ -336,6 +336,20 @@ public class GameEngineTests
         Fails(state, new CancelJob(mill.Id, 1), ErrorCode.StorageFull);
     }
 
+    [Theory]
+    [InlineData(typeof(GameCommand))]
+    [InlineData(typeof(GameEvent))]
+    public void Every_command_and_event_is_registered_for_json(Type baseType)
+    {
+        // An unregistered subtype can't be sent between client and server; the server would fail mid-response.
+        var registered = baseType.GetCustomAttributes(typeof(System.Text.Json.Serialization.JsonDerivedTypeAttribute), false)
+            .Cast<System.Text.Json.Serialization.JsonDerivedTypeAttribute>()
+            .Select(a => a.DerivedType)
+            .ToHashSet();
+        var subtypes = baseType.Assembly.GetTypes().Where(t => t.IsSubclassOf(baseType) && !t.IsAbstract);
+        Assert.All(subtypes, t => Assert.Contains(t, registered));
+    }
+
     [Fact]
     public void Upgrades_check_level_prerequisites_and_cost()
     {

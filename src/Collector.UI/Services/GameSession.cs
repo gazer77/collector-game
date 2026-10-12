@@ -241,12 +241,14 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
             }
             return result;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
             if (!_offline)
             {
                 _offline = true;
-                Toasted?.Invoke(new Toast("Lost connection to the farm. Your actions will be sent when it's back.", IsError: true));
+                Toasted?.Invoke(new Toast(ex.StatusCode is { } status
+                    ? $"The farm server hit an error ({(int)status}). Your actions will be retried."
+                    : "Lost connection to the farm. Your actions will be sent when it's back.", IsError: true));
             }
             return null;
         }
@@ -255,6 +257,8 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
     private void Accept(GameSync sync)
     {
         _confirmed = sync.State;
+        // Number new commands after everything the server has applied, so a resend is recognised as one.
+        _nextSeq = Math.Max(_nextSeq, sync.State.LastCommandSeq + 1);
         _confirmedAt = _clock.Elapsed;
         _lastContact = _clock.Elapsed;
         Rebuild();
