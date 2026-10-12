@@ -107,7 +107,7 @@ public sealed class GameEngine(GameDefinitions definitions)
             return Unknown("producer", c.Producer);
         if (state.Level < producer.UnlockLevel)
             return Locked(producer.Name, producer.UnlockLevel);
-        if (GameDefinitions.LimitFor(producer, state.Level) is { } limit
+        if (GameDefinitions.LimitFor(producer, state) is { } limit
             && state.Placements.Count(p => p.Producer == producer.Id) >= limit)
             return CommandResult.Fail(ErrorCode.LimitReached, $"You can't build more than {limit} {producer.Name} at your level.");
         if (CheckAffordable(state, producer.Cost) is { } cantAfford)

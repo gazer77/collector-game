@@ -8,7 +8,7 @@
         @foreach (var producer in defs.Content.Producers.OrderBy(p => p.UnlockLevel))
         {
             var owned = State.Placements.Count(p => p.Producer == producer.Id);
-            var limit = GameDefinitions.LimitFor(producer, State.Level);
+            var limit = GameDefinitions.LimitFor(producer, State);
             var locked = State.Level < producer.UnlockLevel;
             var full = limit is { } l && owned >= l;
             <li class="shop-row @(locked ? "is-locked" : "")">

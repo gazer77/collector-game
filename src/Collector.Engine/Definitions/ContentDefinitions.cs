@@ -82,6 +82,9 @@ public sealed record ProducerDefinition
     /// <summary>How many may be owned, by player level. The highest entry at or below the player's level applies. Empty means unlimited.</summary>
     public List<CountLimit> Limits { get; init; } = [];
 
+    /// <summary>Extra allowance on top of <see cref="Limits"/> for each land parcel the player owns.</summary>
+    public int LimitPerParcel { get; init; }
+
     /// <summary>Tier 0 is the as-built tier; its cost is ignored.</summary>
     public required List<ProducerTier> Tiers { get; init; }
 }

@@ -1,4 +1,5 @@
 using Collector.Engine.Definitions;
+using Collector.Engine.State;
 
 namespace Collector.Engine.Packs;
 
@@ -54,12 +55,13 @@ public sealed class GameDefinitions
         _recipesByProducer.TryGetValue(producerId, out var list) ? list : [];
 
     /// <summary>The most of <paramref name="producer"/> a player at <paramref name="level"/> may own, or null for no limit.</summary>
-    public static int? LimitFor(ProducerDefinition producer, int level)
+    /// <summary>How many of <paramref name="producer"/> the player may own: the level step plus a bonus per owned parcel. Null means unlimited.</summary>
+    public static int? LimitFor(ProducerDefinition producer, PlayerState state)
     {
         if (producer.Limits.Count == 0)
             return null;
-        var applicable = producer.Limits.Where(l => l.Level <= level).MaxBy(l => l.Level);
-        return applicable?.Count ?? 0;
+        var applicable = producer.Limits.Where(l => l.Level <= state.Level).MaxBy(l => l.Level);
+        return (applicable?.Count ?? 0) + producer.LimitPerParcel * state.OwnedParcels.Count;
     }
 }
 

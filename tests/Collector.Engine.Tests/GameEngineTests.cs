@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Collector.Engine.Commands;
+using Collector.Engine.Packs;
 using Collector.Engine.Serialization;
 using Collector.Engine.Simulation;
 using Collector.Engine.State;
@@ -70,7 +71,7 @@ public class GameEngineTests
         Fails(state, new StartRecipe(field.Id, "grow_wheat"), ErrorCode.NoFreeSlot);
         Fails(state, new Collect(field.Id), ErrorCode.NotReady);
 
-        _engine.AdvanceTime(state, 119 * Second);
+        _engine.AdvanceTime(state, 59 * Second);
         Fails(state, new Collect(field.Id), ErrorCode.NotReady);
         _engine.AdvanceTime(state, 1 * Second);
 
@@ -221,6 +222,22 @@ public class GameEngineTests
 
         state.Wallet["coins"] = 5;
         Fails(state, new PlaceProducer("field", 0, 7), ErrorCode.CannotAfford);
+    }
+
+    [Fact]
+    public void Field_allowance_grows_with_level_and_owned_land()
+    {
+        var state = NewGame();
+        var field = TestPacks.Farm.Producers["field"];
+        Assert.Equal(8 + 8, GameDefinitions.LimitFor(field, state)); // level 1 step, plus home
+
+        state.Level = 3;
+        state.Wallet["coins"] = 1000;
+        Ok(state, new BuyParcel("east"));
+        Assert.Equal(12 + 2 * 8, GameDefinitions.LimitFor(field, state));
+
+        // Producers without a per-parcel bonus are unaffected.
+        Assert.Equal(1, GameDefinitions.LimitFor(TestPacks.Farm.Producers["feed_mill"], state));
     }
 
     [Fact]

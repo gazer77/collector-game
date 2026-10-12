@@ -91,6 +91,8 @@ public static class PackValidator
                 Error("producers.json", $"{owner} must be at least 1x1.");
             if (producer.Tiers.Count == 0)
                 Error("producers.json", $"{owner} needs at least one tier.");
+            if (producer.LimitPerParcel < 0)
+                Error("producers.json", $"{owner} limitPerParcel can't be negative.");
             for (var i = 0; i < producer.Tiers.Count; i++)
             {
                 var tier = producer.Tiers[i];
