@@ -109,7 +109,7 @@
         if (placement is null)
             return;
         // Tapping something with finished goods collects them straight away, like picking up a basket.
-        if (placement.Jobs.Any(j => j.IsReady(Session.State.Time)))
+        if (Session.Engine.GatherGroup(Session.State, placement).Any(p => p.Jobs.Any(j => j.IsReady(Session.State.Time))))
             Session.Do(new Collect(placementId));
         _selected = placementId;
     }

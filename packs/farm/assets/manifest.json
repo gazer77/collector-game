@@ -32,5 +32,11 @@
   "upgrade.heat_lamps":      { "emoji": "💡" },
   "upgrade.millstones":      { "emoji": "🪨" },
   "upgrade.butter_churn":    { "emoji": "🧈" },
-  "upgrade.smoker_racks":    { "emoji": "🪵" }
+  "upgrade.smoker_racks":    { "emoji": "🪵" },
+  "upgrade.harvest_cart":    { "emoji": "🛒" },
+  "upgrade.seed_drill":      { "emoji": "🌱" },
+  "upgrade.herding_dog":     { "emoji": "🐕" },
+  "upgrade.auto_feeders":    { "emoji": "⏲️" },
+  "upgrade.farm_truck":      { "emoji": "🛻" },
+  "upgrade.conveyor_belts":  { "emoji": "⚙️" }
 }

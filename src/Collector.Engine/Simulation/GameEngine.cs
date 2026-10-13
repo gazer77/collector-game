@@ -177,9 +177,46 @@ public sealed class GameEngine(GameDefinitions definitions)
     {
         if (state.FindPlacement(c.PlacementId) is not { } placement)
             return NoPlacement(c.PlacementId);
+        var group = GatherGroup(state, placement);
+        if (group.SelectMany(p => p.Jobs).FirstOrDefault(j => j.IsReady(state.Time)) is not { } firstReady)
+            return CommandResult.Fail(ErrorCode.NotReady, "Nothing is ready to collect yet.");
+
+        var gathered = 0;
+        foreach (var target in group)
+            gathered += Gather(state, target, events);
+        if (gathered == 0)
+        {
+            var storage = Definitions.Items[Definitions.Recipes[firstReady.Recipe].Outputs.Keys.First()].Storage;
+            return CommandResult.Fail(ErrorCode.StorageFull, $"Not enough room in your {Definitions.Storage[storage].Name}.");
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// What collecting from <paramref name="placement"/> collects from: itself first, then every other placement
+    /// covered by one of its gather-all upgrades.
+    /// </summary>
+    public IReadOnlyList<Placement> GatherGroup(PlayerState state, Placement placement)
+    {
+        var sweeps = ActiveUpgrades(state, placement).Where(u => u.GatherAll).ToList();
+        if (sweeps.Count == 0)
+            return [placement];
+        return [placement, .. state.Placements.Where(p => p != placement && sweeps.Any(u => u.AppliesTo(Definitions.Producers[p.Producer])))];
+    }
+
+    /// <summary>Whether <paramref name="placement"/> collects and restarts by itself.</summary>
+    public bool AutoRestarts(PlayerState state, Placement placement) =>
+        ActiveUpgrades(state, placement).Any(u => u.AutoRestart);
+
+    /// <summary>
+    /// Collects the placement's finished jobs, in order, until storage runs out. Returns how many came in;
+    /// when none do, nothing has changed.
+    /// </summary>
+    private int Gather(PlayerState state, Placement placement, List<GameEvent> events)
+    {
         var ready = placement.Jobs.Where(j => j.IsReady(state.Time)).ToList();
         if (ready.Count == 0)
-            return CommandResult.Fail(ErrorCode.NotReady, "Nothing is ready to collect yet.");
+            return 0;
 
         var collected = new OrdinalDictionary<int>();
         var bonus = new OrdinalDictionary<int>();
@@ -188,6 +225,7 @@ public sealed class GameEngine(GameDefinitions definitions)
         var rngState = state.RngState;
         var rng = new DeterministicRandom(ref rngState);
         long xp = 0;
+        var count = 0;
         foreach (var job in ready)
         {
             var recipe = Definitions.Recipes[job.Recipe];
@@ -210,19 +248,17 @@ public sealed class GameEngine(GameDefinitions definitions)
                 collected[item] = collected.GetValueOrDefault(item) + qty;
             xp += recipe.Xp;
             placement.Jobs.Remove(job);
+            count++;
         }
-        if (collected.Count == 0)
-        {
-            var storage = Definitions.Items[Definitions.Recipes[ready[0].Recipe].Outputs.Keys.First()].Storage;
-            return CommandResult.Fail(ErrorCode.StorageFull, $"Not enough room in your {Definitions.Storage[storage].Name}.");
-        }
+        if (count == 0)
+            return 0;
 
         state.RngState = rngState;
         events.Add(new ItemsCollected(placement.Id, collected));
         if (bonus.Count > 0)
             events.Add(new BonusYield(placement.Id, bonus));
         GainXp(state, xp, events);
-        return null;
+        return count;
     }
 
     private CommandResult? Cancel(PlayerState state, CancelJob c)
@@ -505,8 +541,48 @@ public sealed class GameEngine(GameDefinitions definitions)
 
     private void AdvanceClock(PlayerState state, long milliseconds, List<GameEvent> events)
     {
-        state.Time += milliseconds;
+        var end = state.Time + milliseconds;
+        // Self-running producers act at the moment each batch finishes, not at the end of the advance,
+        // so a long absence plays out the same as watching it happen.
+        var auto = state.Placements.Where(p => AutoRestarts(state, p)).ToList();
+        var stalled = new HashSet<Placement>();
+        while (NextAutoCollect(auto, stalled, end) is { } next)
+        {
+            state.Time = Math.Max(state.Time, next.At);
+            RefillOrders(state, events);
+            var gathered = Gather(state, next.Placement, events);
+            if (gathered == 0)
+            {
+                stalled.Add(next.Placement); // storage is full for now
+                continue;
+            }
+            // Something changed in storage, so whatever was stuck may fit now.
+            stalled.Clear();
+            for (var i = 0; i < gathered; i++)
+            {
+                if (next.Placement.LastRecipe is not { } recipe || Start(state, new StartRecipe(next.Placement.Id, recipe)) is not null)
+                    break;
+            }
+        }
+        state.Time = end;
         RefillOrders(state, events);
+    }
+
+    /// <summary>The earliest finished job, up to <paramref name="end"/>, on a self-running placement that isn't stuck.</summary>
+    private static (Placement Placement, long At)? NextAutoCollect(List<Placement> auto, HashSet<Placement> stalled, long end)
+    {
+        (Placement, long)? next = null;
+        foreach (var placement in auto)
+        {
+            if (stalled.Contains(placement))
+                continue;
+            foreach (var job in placement.Jobs)
+            {
+                if (job.EndsAt <= end && (next is null || job.EndsAt < next.Value.Item2))
+                    next = (placement, job.EndsAt);
+            }
+        }
+        return next;
     }
 
     private void GainXp(PlayerState state, long xp, List<GameEvent> events)

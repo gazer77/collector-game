@@ -11,6 +11,9 @@
     var ready = placement.Jobs.Count(j => j.IsReady(now));
     var speedUpCost = engine.SpeedUpCost(State, placement);
     var freeSlots = slots - placement.Jobs.Count;
+    var group = engine.GatherGroup(State, placement);
+    var groupReady = group.Sum(p => p.Jobs.Count(j => j.IsReady(now)));
+    var auto = engine.AutoRestarts(State, placement);
 }
 <section class="panel" aria-labelledby="producer-title">
     <header class="panel-head">
@@ -20,6 +23,10 @@
             <p class="panel-sub">
                 @(lanes == slots ? "Everything runs at once" : lanes == 1 ? "One at a time" : $"{lanes} at a time")
                 · @placement.Jobs.Count of @slots slots in use
+                @if (auto)
+                {
+                    <text> · Restarts by itself</text>
+                }
             </p>
         </div>
         <button class="btn btn-quiet close" @onclick="OnClose" aria-label="Close">✕</button>
@@ -50,8 +57,15 @@
                 </li>
             }
         </ol>
+    }
+    @if (groupReady > 0 || speedUpCost is not null)
+    {
         <div class="actions">
-            @if (ready > 0)
+            @if (groupReady > ready)
+            {
+                <button class="btn btn-primary" @onclick="() => Session.Do(new Collect(placement.Id))">Collect all @groupReady</button>
+            }
+            else if (ready > 0)
             {
                 <button class="btn btn-primary" @onclick="() => Session.Do(new Collect(placement.Id))">Collect @ready</button>
             }

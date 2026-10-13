@@ -37,6 +37,10 @@ public static class Display
             parts.Add($"{Math.Round((1 - upgrade.DurationMultiplier) * 100)}% faster");
         if (upgrade.BonusChance > 0)
             parts.Add($"{Math.Round(upgrade.BonusChance * 100)}% chance of +1");
+        if (upgrade.GatherAll)
+            parts.Add("collect one to collect them all");
+        if (upgrade.AutoRestart)
+            parts.Add("collects and restarts by itself");
         return string.Join(" · ", parts);
     }
 

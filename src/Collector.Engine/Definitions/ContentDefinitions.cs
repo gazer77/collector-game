@@ -133,6 +133,15 @@ public sealed record UpgradeDefinition
     /// <summary>Chance, per collected batch, of one extra of each output. Chances from several upgrades add up (capped at 1).</summary>
     public double BonusChance { get; init; }
 
+    /// <summary>Collecting from one producer it covers collects from every producer it covers.</summary>
+    public bool GatherAll { get; init; }
+
+    /// <summary>
+    /// Producers it covers collect finished batches by themselves and start their last recipe again,
+    /// for as long as inputs, slots and storage allow.
+    /// </summary>
+    public bool AutoRestart { get; init; }
+
     public bool AppliesTo(ProducerDefinition producer) =>
         Producers.Contains(producer.Id) || Categories.Contains(producer.Category);
 }

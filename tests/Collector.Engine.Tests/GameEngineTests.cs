@@ -480,6 +480,101 @@ public class GameEngineTests
     }
 
     [Fact]
+    public void Gather_all_collects_every_covered_producer_from_any_one_of_them()
+    {
+        var state = NewGame();
+        state.Level = 2;
+        var fields = state.Placements.Where(p => p.Producer == "field").ToList();
+        var mill = state.First("feed_mill");
+        Ok(state, new StartRecipe(fields[0].Id, "grow_wheat"));
+        Ok(state, new StartRecipe(fields[1].Id, "grow_wheat"));
+        Ok(state, new StartRecipe(fields[2].Id, "grow_wheat"));
+        Ok(state, new StartRecipe(mill.Id, "chicken_feed"));
+        _engine.AdvanceTime(state, 180 * Second);
+
+        Ok(state, new Collect(fields[0].Id));
+        Assert.Empty(fields[0].Jobs);
+        Assert.Single(fields[1].Jobs); // no cart yet: one field at a time
+
+        Ok(state, new BuyUpgrade("harvest_cart"));
+        var wheat = state.Count("wheat");
+        Ok(state, new Collect(fields[0].Id)); // an empty field still gathers the rest
+        Assert.All(fields, f => Assert.Empty(f.Jobs));
+        Assert.Equal(wheat + 4, state.Count("wheat"));
+        Assert.Single(mill.Jobs); // the cart is for fields only
+
+        Fails(state, new Collect(fields[0].Id), ErrorCode.NotReady);
+    }
+
+    [Fact]
+    public void Self_running_producers_collect_and_restart_as_each_batch_finishes()
+    {
+        var state = NewGame();
+        state.Level = 6;
+        state.Wallet["coins"] = 5000;
+        Ok(state, new BuyUpgrade("harvest_cart"));
+        Ok(state, new BuyUpgrade("seed_drill"));
+        var field = state.First("field");
+        Ok(state, new StartRecipe(field.Id, "grow_wheat"));   // 6 wheat → 5
+        var xp = state.Xp;
+
+        _engine.AdvanceTime(state, 150 * Second);
+
+        // Harvested at 60 s and 120 s (+2 each, replanting -1 each), now growing again from 120 s.
+        Assert.Equal(7, state.Count("wheat"));
+        Assert.Equal(xp + 2, state.Xp);
+        var job = Assert.Single(field.Jobs);
+        Assert.Equal((120 * Second, 180 * Second), (job.StartsAt, job.EndsAt));
+    }
+
+    [Fact]
+    public void Self_running_producers_play_out_the_same_however_time_is_chopped_up()
+    {
+        PlayerState Setup()
+        {
+            var state = NewGame();
+            state.Level = 8;
+            state.Wallet["coins"] = 20000;
+            foreach (var upgrade in new[] { "harvest_cart", "seed_drill", "farm_truck", "conveyor_belts", "nesting_boxes", "plow" })
+                Ok(state, new BuyUpgrade(upgrade));
+            state.Inventory["wheat"] = 30;
+            foreach (var field in state.Placements.Where(p => p.Producer == "field"))
+                Ok(state, new StartRecipe(field.Id, "grow_wheat"));
+            Ok(state, new StartRecipe(state.First("feed_mill").Id, "chicken_feed"));
+            return state;
+        }
+        var once = Setup();
+        _engine.AdvanceTime(once, 3600 * Second);
+        var chopped = Setup();
+        for (var t = 0; t < 3600; t += 7)
+            _engine.AdvanceTime(chopped, Math.Min(7, 3600 - t) * Second);
+
+        once.Version = chopped.Version = 0;
+        Assert.Equal(StateHasher.Serialize(once), StateHasher.Serialize(chopped));
+        Assert.True(once.Count("chicken_feed") > 3);
+    }
+
+    [Fact]
+    public void A_full_silo_pauses_self_running_producers_until_there_is_room()
+    {
+        var state = NewGame();
+        state.Level = 6;
+        state.Wallet["coins"] = 5000;
+        Ok(state, new BuyUpgrade("harvest_cart"));
+        Ok(state, new BuyUpgrade("seed_drill"));
+        var field = state.First("field");
+        Ok(state, new StartRecipe(field.Id, "grow_wheat"));
+        state.Inventory["wheat"] += _engine.StorageCapacity(state, "silo") - _engine.StorageUsed(state, "silo") - 1;
+
+        _engine.AdvanceTime(state, 300 * Second);
+        Assert.True(Assert.Single(field.Jobs).IsReady(state.Time)); // no room for 2 wheat: it waits
+
+        Ok(state, new SellItem("wheat", 5));
+        _engine.AdvanceTime(state, 1 * Second);
+        Assert.Equal(300 * Second, Assert.Single(field.Jobs).StartsAt); // collected and replanted as soon as there was room
+    }
+
+    [Fact]
     public void Bonus_chance_sometimes_adds_one_of_each_output()
     {
         var state = NewGame();
