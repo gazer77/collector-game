@@ -245,8 +245,16 @@ public static class PackValidator
             var owner = $"Upgrade '{upgrade.Id}'";
             CheckAsset("upgrades.json", owner, upgrade.Asset);
             CheckCost("upgrades.json", owner, upgrade.Cost);
-            if (upgrade.Producers.Count == 0 && upgrade.Categories.Count == 0)
+            var targeted = upgrade.Producers.Count > 0 || upgrade.Categories.Count > 0;
+            var producerEffects = upgrade.DurationMultiplier < 1 || upgrade.BonusChance > 0 || upgrade.GatherAll || upgrade.AutoRestart;
+            if (upgrade.IsFarmWide && (targeted || producerEffects))
+                Error("upgrades.json", $"{owner} is a farm-wide helper, so it can't name producers, categories or producer effects.");
+            else if (!upgrade.IsFarmWide && !targeted)
                 Error("upgrades.json", $"{owner} must name producers or categories to apply to.");
+            if (upgrade.SellsExcess && pack.Market is null)
+                Error("upgrades.json", $"{owner} sells goods, but the pack has no market.json.");
+            if (upgrade.FillsOrders && pack.Orders is null)
+                Error("upgrades.json", $"{owner} fills orders, but the pack has no orders.json.");
             foreach (var producer in upgrade.Producers.Where(p => !producerIds.Contains(p)))
                 Error("upgrades.json", $"{owner} names unknown producer '{producer}'.");
             foreach (var category in upgrade.Categories.Where(c => !categories.Contains(c)))

@@ -4,8 +4,18 @@
     var defs = Session.Definitions;
     var engine = Session.Engine;
     var sellCurrency = defs.Market is { } market ? defs.Currencies[market.SellCurrency] : null;
+    var manager = Session.HasHelper(h => h.SellsExcess);
+    var assistant = Session.HasHelper(h => h.FillsOrders);
 }
 <section class="panel" aria-label="Storage">
+    @if (manager || assistant)
+    {
+        <p class="panel-intro">
+            @(manager && assistant ? "Your manager sells anything above the amount you keep, and your assistant never dips below it to fill orders. Leave Keep empty and that item is never sold."
+              : manager ? "Your manager sells anything above the amount you keep. Leave Keep empty and that item is never sold."
+              : "Your assistant leaves at least the amount you keep when filling orders.")
+        </p>
+    }
     @foreach (var storage in defs.Content.Storage)
     {
         var used = engine.StorageUsed(State, storage.Id);
@@ -45,7 +55,19 @@
                             }
                             else
                             {
-                                <span class="stock-name">@item.Name</span>
+                                <div class="stock-main">
+                                    <span class="stock-name">@item.Name</span>
+                                    @if (manager || assistant)
+                                    {
+                                        <label class="keep" title="Helpers leave at least this many">
+                                            <span class="keep-label">Keep</span>
+                                            <input class="keep-input" type="number" min="0" inputmode="numeric" placeholder="–"
+                                                   value="@(State.KeepAtLeast.TryGetValue(item.Id, out var keep) ? keep.ToString() : "")"
+                                                   aria-label="Keep at least this many @item.Name"
+                                                   @onchange="e => SetKeep(item.Id, e.Value?.ToString())" />
+                                        </label>
+                                    }
+                                </div>
                                 <span class="stock-count">@count</span>
                                 @if (sellable)
                                 {
@@ -86,6 +108,13 @@
     private string? _confirming;
 
     [Parameter, EditorRequired] public PlayerState State { get; set; } = null!;
+
+    private void SetKeep(string itemId, string? text)
+    {
+        int? minimum = int.TryParse(text, out var n) ? Math.Max(0, n) : null;
+        if (minimum != (State.KeepAtLeast.TryGetValue(itemId, out var current) ? (int?)current : null))
+            Session.Do(new SetKeep(itemId, minimum));
+    }
 
     private void SellAll(string itemId)
     {

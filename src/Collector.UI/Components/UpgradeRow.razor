@@ -10,7 +10,7 @@
     <span class="stock-glyph" aria-hidden="true">@defs.Emoji(Upgrade.Asset)</span>
     <div class="shop-body">
         <span class="shop-name">@Upgrade.Name</span>
-        <span class="shop-detail">@Display.Effects(Upgrade) · @Display.Targets(defs, Upgrade)</span>
+        <span class="shop-detail">@(Upgrade.IsFarmWide ? Display.Effects(Upgrade) : $"{Display.Effects(Upgrade)} · {Display.Targets(defs, Upgrade)}")</span>
     </div>
     @if (owned)
     {

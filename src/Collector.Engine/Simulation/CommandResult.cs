@@ -38,6 +38,7 @@ public sealed record CommandResult
 [JsonDerivedType(typeof(LevelReached), "levelReached")]
 [JsonDerivedType(typeof(OrderCompleted), "orderCompleted")]
 [JsonDerivedType(typeof(OrderArrived), "orderArrived")]
+[JsonDerivedType(typeof(ItemsSold), "itemsSold")]
 public abstract record GameEvent;
 
 public sealed record ItemsCollected(int PlacementId, IReadOnlyDictionary<string, int> Items) : GameEvent;
@@ -46,5 +47,9 @@ public sealed record ItemsCollected(int PlacementId, IReadOnlyDictionary<string,
 public sealed record BonusYield(int PlacementId, IReadOnlyDictionary<string, int> Items) : GameEvent;
 public sealed record XpGained(long Amount) : GameEvent;
 public sealed record LevelReached(int Level, IReadOnlyDictionary<string, long> Rewards, IReadOnlyDictionary<string, int> ItemRewards) : GameEvent;
-public sealed record OrderCompleted(int Slot, int OrderId) : GameEvent;
+/// <summary>An order was delivered, by the player or (<paramref name="ByHelper"/>) by a hired helper.</summary>
+public sealed record OrderCompleted(int Slot, int OrderId, bool ByHelper = false) : GameEvent;
+
+/// <summary>A hired helper sold goods above what the player keeps.</summary>
+public sealed record ItemsSold(IReadOnlyDictionary<string, int> Items, string Currency, long Amount) : GameEvent;
 public sealed record OrderArrived(int Slot, int OrderId) : GameEvent;

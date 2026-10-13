@@ -40,11 +40,16 @@ public sealed class PlayerState
     /// <summary>Upgrades bought, in purchase order.</summary>
     public List<string> Upgrades { get; set; } = [];
 
+    /// <summary>Per item, how many to keep when helpers sell goods or fill orders. Items not listed are never sold by helpers.</summary>
+    public OrdinalDictionary<int> KeepAtLeast { get; set; } = new();
+
     public List<Placement> Placements { get; set; } = [];
     public List<OrderSlot> Orders { get; set; } = [];
 
     public long Balance(string currency) => Wallet.GetValueOrDefault(currency);
     public int Count(string item) => Inventory.GetValueOrDefault(item);
+    /// <summary>How many of <paramref name="item"/> helpers must leave in storage.</summary>
+    public int Keep(string item) => KeepAtLeast.GetValueOrDefault(item);
     public int StorageTier(string storage) => StorageTiers.GetValueOrDefault(storage);
     public Placement? FindPlacement(int id) => Placements.Find(p => p.Id == id);
 }

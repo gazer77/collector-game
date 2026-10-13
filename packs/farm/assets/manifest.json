@@ -38,5 +38,7 @@
   "upgrade.herding_dog":     { "emoji": "🐕" },
   "upgrade.auto_feeders":    { "emoji": "⏲️" },
   "upgrade.farm_truck":      { "emoji": "🛻" },
-  "upgrade.conveyor_belts":  { "emoji": "⚙️" }
+  "upgrade.conveyor_belts":  { "emoji": "⚙️" },
+  "upgrade.farm_manager":    { "emoji": "🧑‍💼" },
+  "upgrade.order_assistant": { "emoji": "📋" }
 }

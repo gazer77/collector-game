@@ -21,6 +21,7 @@ namespace Collector.Engine.Commands;
 [JsonDerivedType(typeof(DiscardOrder), "discardOrder")]
 [JsonDerivedType(typeof(EndTurn), "endTurn")]
 [JsonDerivedType(typeof(SetPace), "setPace")]
+[JsonDerivedType(typeof(SetKeep), "setKeep")]
 public abstract record GameCommand;
 
 public sealed record PlaceProducer(string Producer, int X, int Y) : GameCommand;
@@ -49,6 +50,9 @@ public sealed record DiscardOrder(int Slot) : GameCommand;
 
 /// <summary>Changes how fast production runs (see <see cref="State.PlayerState.Pace"/>). Jobs already underway speed up or slow down too.</summary>
 public sealed record SetPace(double Pace) : GameCommand;
+
+/// <summary>Sets how many of an item helpers leave in storage; null stops the manager selling it at all.</summary>
+public sealed record SetKeep(string Item, int? Minimum) : GameCommand;
 
 /// <summary>Turn-mode packs only: advances the clock by one turn.</summary>
 public sealed record EndTurn : GameCommand;

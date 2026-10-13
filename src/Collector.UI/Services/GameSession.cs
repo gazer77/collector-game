@@ -152,6 +152,10 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
         Definitions.Market is { } market ? Definitions.Currencies[market.BuyCurrency ?? market.SellCurrency] : null;
 
     /// <summary>What it costs to buy whatever is short of <paramref name="needs"/>; null if any of it can't be bought yet.</summary>
+    /// <summary>Whether the player has hired a farm-wide helper matching <paramref name="what"/>.</summary>
+    public bool HasHelper(Func<UpgradeDefinition, bool> what) =>
+        State.Upgrades.Any(id => Definitions.Upgrades.TryGetValue(id, out var u) && u.IsFarmWide && what(u));
+
     public long? CostOfMissing(IReadOnlyDictionary<string, int> needs)
     {
         long total = 0;
@@ -330,9 +334,14 @@ public sealed class GameSession(GameApi api, IClientStorage storage) : IAsyncDis
                     .Concat(level.ItemRewards.Select(r => $"{r.Value} {Definitions.Items[r.Key].Name}"));
                 Toasted?.Invoke(new Toast($"Level {level.Level}! You got {string.Join(", ", rewards)}."));
             }
-            else if (e is OrderCompleted)
+            else if (e is OrderCompleted completed)
             {
-                Toasted?.Invoke(new Toast("Order delivered."));
+                Toasted?.Invoke(new Toast(completed.ByHelper ? "Your assistant delivered an order." : "Order delivered."));
+            }
+            else if (e is ItemsSold sold)
+            {
+                var items = string.Join(", ", sold.Items.Select(i => $"{i.Value} {Definitions.Items[i.Key].Name}"));
+                Toasted?.Invoke(new Toast($"Your manager sold {items} for {sold.Amount:N0} {Definitions.Currencies[sold.Currency].Name}."));
             }
             else if (e is BonusYield bonus)
             {

@@ -535,9 +535,11 @@ public class GameEngineTests
             var state = NewGame();
             state.Level = 8;
             state.Wallet["coins"] = 20000;
-            foreach (var upgrade in new[] { "harvest_cart", "seed_drill", "farm_truck", "conveyor_belts", "nesting_boxes", "plow" })
+            foreach (var upgrade in new[] { "harvest_cart", "seed_drill", "farm_truck", "conveyor_belts", "nesting_boxes", "plow", "farm_manager", "order_assistant" })
                 Ok(state, new BuyUpgrade(upgrade));
             state.Inventory["wheat"] = 30;
+            Ok(state, new SetKeep("wheat", 20));
+            Ok(state, new SetKeep("chicken_feed", 6));
             foreach (var field in state.Placements.Where(p => p.Producer == "field"))
                 Ok(state, new StartRecipe(field.Id, "grow_wheat"));
             Ok(state, new StartRecipe(state.First("feed_mill").Id, "chicken_feed"));
@@ -572,6 +574,96 @@ public class GameEngineTests
         Ok(state, new SellItem("wheat", 5));
         _engine.AdvanceTime(state, 1 * Second);
         Assert.Equal(300 * Second, Assert.Single(field.Jobs).StartsAt); // collected and replanted as soon as there was room
+    }
+
+    [Fact]
+    public void The_farm_manager_sells_only_what_is_above_the_amounts_kept()
+    {
+        var state = NewGame();
+        state.Level = 4;
+        state.Wallet["coins"] = 1000;
+        state.Inventory["wheat"] = 20;
+        state.Inventory["corn"] = 9;
+
+        Ok(state, new SetKeep("wheat", 10)); // nobody to sell it yet
+        Assert.Equal(20, state.Count("wheat"));
+
+        var result = _engine.Apply(state, new BuyUpgrade("farm_manager"));
+        Assert.True(result.Ok);
+        Assert.Equal(10, state.Count("wheat"));
+        Assert.Equal(9, state.Count("corn")); // no amount set: never sold
+        Assert.Equal(10 * _engine.Definitions.Items["wheat"].SellPrice, state.Balance("coins"));
+        var sold = Assert.Single(result.Events.OfType<ItemsSold>());
+        Assert.Equal(10, sold.Items["wheat"]);
+
+        // Fresh harvests are sold too, down to the amount kept.
+        var field = state.First("field");
+        Ok(state, new StartRecipe(field.Id, "grow_wheat"));
+        Assert.Equal(9, state.Count("wheat")); // below the amount kept: nothing to sell
+        _engine.AdvanceTime(state, 60 * Second);
+        Ok(state, new Collect(field.Id));
+        Assert.Equal(10, state.Count("wheat"));
+
+        Ok(state, new SetKeep("wheat", null));
+        state.Inventory["wheat"] = 30;
+        Ok(state, new SetKeep("corn", 9));
+        Assert.Equal(30, state.Count("wheat"));
+        Fails(state, new SetKeep("wheat", -1), ErrorCode.InvalidCommand);
+    }
+
+    [Fact]
+    public void The_order_assistant_delivers_what_it_can_without_dipping_below_amounts_kept()
+    {
+        var state = NewGame();
+        state.Level = 5;
+        state.Wallet["coins"] = 1500;
+        state.Inventory.Clear();
+        state.Orders[0].Order = new Order { Id = 900, Items = { ["wheat"] = 3 }, Rewards = { ["coins"] = 40 } };
+        state.Orders[1].Order = new Order { Id = 901, Items = { ["corn"] = 2 }, Rewards = { ["coins"] = 30 } };
+        state.Orders[2] = new OrderSlot { AvailableAt = long.MaxValue };
+        state.Inventory["wheat"] = 5;
+        state.Inventory["corn"] = 3;
+        Ok(state, new SetKeep("corn", 2));
+
+        var result = _engine.Apply(state, new BuyUpgrade("order_assistant"));
+
+        Assert.True(result.Ok);
+        Assert.Null(state.Orders[0].Order);                 // delivered
+        Assert.Equal(901, state.Orders[1].Order!.Id);       // would leave 1 corn, below the 2 kept
+        Assert.Equal(2, state.Count("wheat"));
+        Assert.Equal(40, state.Balance("coins"));
+        Assert.Contains(result.Events, e => e is OrderCompleted { OrderId: 900, ByHelper: true });
+    }
+
+    [Fact]
+    public void The_order_assistant_delivers_new_orders_the_moment_they_arrive()
+    {
+        var state = NewGame();
+        state.Level = 5;
+        state.Wallet["coins"] = 1500;
+        foreach (var item in _engine.Definitions.Items.Keys)
+            state.Inventory[item] = 500;
+        Ok(state, new BuyUpgrade("order_assistant"));       // fills all three straight away
+        Assert.All(state.Orders, slot => Assert.Null(slot.Order));
+        var delay = _engine.Definitions.Orders!.RefillDelaySeconds * Second;
+        var arrives = state.Orders[0].AvailableAt;
+        Assert.Equal(state.Time + delay, arrives);
+
+        _engine.AdvanceTime(state, delay * 5 / 2);
+
+        // The new order came at `arrives`, was delivered then, and the slot's next order is due a delay later.
+        Assert.Equal(arrives + 2 * delay, state.Orders[0].AvailableAt);
+    }
+
+    [Fact]
+    public async Task Farm_wide_helpers_cannot_target_producers()
+    {
+        var files = TestPacks.FarmFiles();
+        files["upgrades.json"] = files["upgrades.json"].Replace("\"sellsExcess\": true", "\"sellsExcess\": true, \"categories\": [\"field\"]");
+
+        var ex = await Assert.ThrowsAsync<PackValidationException>(() => TestPacks.LoadAsync(files));
+
+        Assert.Contains(ex.Errors, e => e.Contains("farm-wide helper"));
     }
 
     [Fact]

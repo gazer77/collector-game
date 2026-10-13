@@ -56,11 +56,13 @@ public sealed class GameEngine(GameDefinitions definitions)
             DiscardOrder c => Discard(state, c, events),
             EndTurn => Turn(state, events),
             SetPace c => ChangePace(state, c),
+            SetKeep c => ChangeKeep(state, c),
             _ => CommandResult.Fail(ErrorCode.InvalidCommand, $"Unsupported command {command.GetType().Name}."),
         };
         if (failure is not null)
             return failure;
 
+        RunHelpers(state, events);
         state.Version++;
         return CommandResult.Success(events);
     }
@@ -482,14 +484,84 @@ public sealed class GameEngine(GameDefinitions definitions)
         if (CheckItems(state, order.Items) is { } missing)
             return missing;
 
+        Deliver(state, orders, c.Slot, order, byHelper: false, events);
+        return null;
+    }
+
+    private void Deliver(PlayerState state, OrdersDefinition orders, int slot, Order order, bool byHelper, List<GameEvent> events)
+    {
         RemoveItems(state, order.Items);
         foreach (var (currency, amount) in order.Rewards)
             Credit(state, currency, amount);
-        state.Orders[c.Slot] = new OrderSlot { AvailableAt = state.Time + orders.RefillDelaySeconds * MsPerSecond };
-        events.Add(new OrderCompleted(c.Slot, order.Id));
+        state.Orders[slot] = new OrderSlot { AvailableAt = state.Time + orders.RefillDelaySeconds * MsPerSecond };
+        events.Add(new OrderCompleted(slot, order.Id, byHelper));
         GainXp(state, order.Xp, events);
         RefillOrders(state, events);
+    }
+
+    private CommandResult? ChangeKeep(PlayerState state, SetKeep c)
+    {
+        if (!Definitions.Items.TryGetValue(c.Item, out var item))
+            return Unknown("item", c.Item);
+        if (c.Minimum is < 0)
+            return CommandResult.Fail(ErrorCode.InvalidCommand, "The amount to keep can't be negative.");
+
+        if (c.Minimum is { } minimum)
+            state.KeepAtLeast[item.Id] = minimum;
+        else
+            state.KeepAtLeast.Remove(item.Id);
         return null;
+    }
+
+    /// <summary>Owned farm-wide upgrades, i.e. hired helpers.</summary>
+    private IEnumerable<UpgradeDefinition> Helpers(PlayerState state) =>
+        state.Upgrades.Select(id => Definitions.Upgrades[id]).Where(u => u.IsFarmWide);
+
+    /// <summary>
+    /// Lets hired helpers act on the current state: first deliver what orders they can (orders pay better),
+    /// then sell what's above the amounts kept. Returns whether anything changed.
+    /// </summary>
+    private bool RunHelpers(PlayerState state, List<GameEvent> events)
+    {
+        var helpers = Helpers(state).ToList();
+        if (helpers.Count == 0)
+            return false;
+        var changed = false;
+
+        if (helpers.Any(h => h.FillsOrders) && Definitions.Orders is { } orders)
+        {
+            for (var slot = 0; slot < state.Orders.Count; slot++)
+            {
+                if (state.Orders[slot].Order is { } order && order.Items.All(kv => state.Count(kv.Key) - kv.Value >= state.Keep(kv.Key)))
+                {
+                    Deliver(state, orders, slot, order, byHelper: true, events);
+                    changed = true;
+                }
+            }
+        }
+
+        if (helpers.Any(h => h.SellsExcess) && Definitions.Market is { } market)
+        {
+            var sold = new OrdinalDictionary<int>();
+            long earned = 0;
+            foreach (var (itemId, keep) in state.KeepAtLeast)
+            {
+                var item = Definitions.Items[itemId];
+                var excess = state.Count(itemId) - keep;
+                if (excess <= 0 || item.SellPrice <= 0)
+                    continue;
+                sold[itemId] = excess;
+                earned += item.SellPrice * excess;
+            }
+            if (sold.Count > 0)
+            {
+                RemoveItems(state, sold);
+                Credit(state, market.SellCurrency, earned);
+                events.Add(new ItemsSold(sold, market.SellCurrency, earned));
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     private CommandResult? Discard(PlayerState state, DiscardOrder c, List<GameEvent> events)
@@ -545,27 +617,60 @@ public sealed class GameEngine(GameDefinitions definitions)
         // Self-running producers act at the moment each batch finishes, not at the end of the advance,
         // so a long absence plays out the same as watching it happen.
         var auto = state.Placements.Where(p => AutoRestarts(state, p)).ToList();
+        // New orders arrive at their own time too, so helpers can deliver them as they come in.
         var stalled = new HashSet<Placement>();
-        while (NextAutoCollect(auto, stalled, end) is { } next)
+        while (true)
         {
-            state.Time = Math.Max(state.Time, next.At);
-            RefillOrders(state, events);
-            var gathered = Gather(state, next.Placement, events);
-            if (gathered == 0)
+            var next = NextAutoCollect(auto, stalled, end);
+            var orderAt = NextOrderArrival(state, end);
+            if (next is null && orderAt is null)
+                break;
+
+            if (next is { } collect && (orderAt is null || collect.At <= orderAt))
             {
-                stalled.Add(next.Placement); // storage is full for now
-                continue;
+                state.Time = Math.Max(state.Time, collect.At);
+                RefillOrders(state, events);
+                var gathered = Gather(state, collect.Placement, events);
+                if (gathered == 0)
+                {
+                    stalled.Add(collect.Placement); // storage is full for now
+                }
+                else
+                {
+                    // Something changed in storage, so whatever was stuck may fit now.
+                    stalled.Clear();
+                    for (var i = 0; i < gathered; i++)
+                    {
+                        if (collect.Placement.LastRecipe is not { } recipe || Start(state, new StartRecipe(collect.Placement.Id, recipe)) is not null)
+                            break;
+                    }
+                }
             }
-            // Something changed in storage, so whatever was stuck may fit now.
-            stalled.Clear();
-            for (var i = 0; i < gathered; i++)
+            else
             {
-                if (next.Placement.LastRecipe is not { } recipe || Start(state, new StartRecipe(next.Placement.Id, recipe)) is not null)
-                    break;
+                state.Time = orderAt!.Value;
+                RefillOrders(state, events);
             }
+            if (RunHelpers(state, events))
+                stalled.Clear();
         }
         state.Time = end;
         RefillOrders(state, events);
+        RunHelpers(state, events);
+    }
+
+    /// <summary>When the next empty order slot gets an order, if that's after now and no later than <paramref name="end"/>.</summary>
+    private long? NextOrderArrival(PlayerState state, long end)
+    {
+        if (Definitions.Orders is not { } orders || state.Level < orders.UnlockLevel)
+            return null;
+        long? next = null;
+        foreach (var slot in state.Orders)
+        {
+            if (slot.Order is null && slot.AvailableAt > state.Time && slot.AvailableAt <= end && (next is null || slot.AvailableAt < next))
+                next = slot.AvailableAt;
+        }
+        return next;
     }
 
     /// <summary>The earliest finished job, up to <paramref name="end"/>, on a self-running placement that isn't stuck.</summary>

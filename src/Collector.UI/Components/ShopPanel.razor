@@ -45,11 +45,13 @@
         }
     </ul>
 
-    @if (defs.Content.Upgrades.Count > 0)
+    @foreach (var (heading, group) in new[] { ("Helpers", defs.Content.Upgrades.Where(u => u.IsFarmWide).ToList()), ("Equipment", defs.Content.Upgrades.Where(u => !u.IsFarmWide).ToList()) })
     {
-        <h3 class="panel-heading">Equipment</h3>
+        if (group.Count == 0)
+            continue;
+        <h3 class="panel-heading">@heading</h3>
         <ul class="shop">
-            @foreach (var upgrade in defs.Content.Upgrades.OrderBy(u => State.Upgrades.Contains(u.Id)).ThenBy(u => u.UnlockLevel))
+            @foreach (var upgrade in group.OrderBy(u => State.Upgrades.Contains(u.Id)).ThenBy(u => u.UnlockLevel))
             {
                 <UpgradeRow State="State" Upgrade="upgrade" />
             }

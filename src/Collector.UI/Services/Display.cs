@@ -41,6 +41,10 @@ public static class Display
             parts.Add("collect one to collect them all");
         if (upgrade.AutoRestart)
             parts.Add("collects and restarts by itself");
+        if (upgrade.SellsExcess)
+            parts.Add("Sells anything above the amounts you keep (set them in Storage)");
+        if (upgrade.FillsOrders)
+            parts.Add("Delivers orders as soon as you have the goods, leaving what you keep");
         return string.Join(" · ", parts);
     }
 

@@ -17,5 +17,8 @@
   { "id": "butter_churn",    "name": "Dairy Churn",     "asset": "upgrade.butter_churn",    "producers": ["dairy"],          "unlockLevel": 5, "cost": { "currencies": { "coins": 1200 } }, "durationMultiplier": 0.9, "bonusChance": 0.25 },
   { "id": "smoker_racks",    "name": "Smoker Racks",    "asset": "upgrade.smoker_racks",    "producers": ["smokehouse"],     "unlockLevel": 7, "cost": { "currencies": { "coins": 2500 } }, "durationMultiplier": 0.8, "bonusChance": 0.15 },
   { "id": "farm_truck",      "name": "Farm Truck",      "asset": "upgrade.farm_truck",      "categories": ["building"],      "unlockLevel": 5, "cost": { "currencies": { "coins": 900 } },  "gatherAll": true },
-  { "id": "conveyor_belts",  "name": "Conveyor Belts",  "asset": "upgrade.conveyor_belts",  "categories": ["building"],      "unlockLevel": 8, "cost": { "currencies": { "coins": 4500 } }, "autoRestart": true, "requires": "farm_truck" }
+  { "id": "conveyor_belts",  "name": "Conveyor Belts",  "asset": "upgrade.conveyor_belts",  "categories": ["building"],      "unlockLevel": 8, "cost": { "currencies": { "coins": 4500 } }, "autoRestart": true, "requires": "farm_truck" },
+
+  { "id": "farm_manager",    "name": "Farm Manager",    "asset": "upgrade.farm_manager",    "unlockLevel": 4, "cost": { "currencies": { "coins": 1000 } }, "sellsExcess": true },
+  { "id": "order_assistant", "name": "Order Assistant", "asset": "upgrade.order_assistant", "unlockLevel": 5, "cost": { "currencies": { "coins": 1500 } }, "fillsOrders": true }
 ]

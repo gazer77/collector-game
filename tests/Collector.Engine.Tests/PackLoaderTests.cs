@@ -32,6 +32,7 @@ public class PackLoaderTests
     {
         var files = TestPacks.FarmFiles();
         files.Remove("orders.json");
+        files.Remove("upgrades.json"); // the order assistant needs orders
         files.Remove(PackLoader.AssetManifestFile);
 
         var defs = await TestPacks.LoadAsync(files);

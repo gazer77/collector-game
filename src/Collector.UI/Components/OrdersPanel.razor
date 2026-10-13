@@ -2,6 +2,7 @@
 
 @{
     var defs = Session.Definitions;
+    var assistant = Session.HasHelper(h => h.FillsOrders);
 }
 <section class="panel" aria-label="Orders">
     @if (defs.Orders is null || State.Orders.Count == 0)
@@ -10,7 +11,13 @@
     }
     else
     {
-        <p class="panel-intro">Customers pay more than the market. Deliver an order to earn coins and XP.</p>
+        <p class="panel-intro">
+            Customers pay more than the market. Deliver an order to earn coins and XP.
+            @if (Session.HasHelper(h => h.FillsOrders))
+            {
+                <text> Your assistant delivers any order you have the goods for, leaving the amounts you keep in Storage.</text>
+            }
+        </p>
         <ul class="orders">
             @for (var i = 0; i < State.Orders.Count; i++)
             {
@@ -23,6 +30,8 @@
                 }
                 var canFill = order.Items.All(kv => State.Count(kv.Key) >= kv.Value);
                 var buyCost = canFill ? null : Session.CostOfMissing(order.Items);
+                // Goods the assistant won't hand over because the player keeps them.
+                var held = assistant && canFill ? order.Items.Where(kv => State.Count(kv.Key) - kv.Value < State.Keep(kv.Key)).Select(kv => kv.Key).ToList() : [];
                 <li class="order @(canFill ? "is-fillable" : "")">
                     <div class="order-items">
                         @foreach (var (item, qty) in order.Items)
@@ -41,6 +50,10 @@
                         }
                         <span class="xp">+@order.Xp XP</span>
                     </div>
+                    @if (held.Count > 0)
+                    {
+                        <p class="order-note">Your assistant is holding back: you keep @string.Join(", ", held.Select(i => $"{State.Keep(i)} {defs.Items[i].Name}")).</p>
+                    }
                     <div class="order-actions">
                         @if (buyCost is { } cost && Session.BuyCurrency is { } buyCurrency)
                         {
