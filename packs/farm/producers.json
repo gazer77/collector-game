@@ -3,7 +3,7 @@
     "id": "field", "name": "Field", "asset": "producer.field", "category": "field",
     "width": 1, "height": 1, "cost": { "currencies": { "coins": 10 } }, "unlockLevel": 1,
     "limits": [ { "level": 1, "count": 8 }, { "level": 3, "count": 12 }, { "level": 5, "count": 16 }, { "level": 7, "count": 20 } ],
-    "limitPerParcel": 8,
+    "limitPerParcel": 4,
     "slots": [
       { "count": 1 },
       { "count": 2, "cost": { "currencies": { "coins": 30 } }, "unlockLevel": 2 },

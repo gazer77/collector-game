@@ -61,7 +61,11 @@ public sealed class GameService(CollectorDb db, PlayerLocks locks, TimeProvider 
         var packId = pack.Definitions.Manifest.Id;
         var save = await db.Saves.SingleOrDefaultAsync(s => s.PlayerId == playerId && s.PackId == packId, ct);
         if (save is not null)
-            return (save, StateHasher.Deserialize(save.StateJson));
+        {
+            var saved = StateHasher.Deserialize(save.StateJson);
+            pack.Engine.Migrate(saved);
+            return (save, saved);
+        }
 
         var state = pack.Engine.NewGame(BitConverter.ToUInt64(RandomNumberGenerator.GetBytes(8)));
         save = new Save

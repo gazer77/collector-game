@@ -73,6 +73,15 @@ public sealed class Placement
 
     /// <summary>The recipe most recently started here, kept after collection so it can be repeated.</summary>
     public string? LastRecipe { get; set; }
+
+    /// <summary>Recipes a self-running placement makes in turn. Empty means it repeats <see cref="LastRecipe"/>.</summary>
+    public List<string> Plan { get; set; } = [];
+
+    /// <summary>Index into <see cref="Plan"/> of the step started most recently, or -1 before any. The next step follows it.</summary>
+    public int PlanLast { get; set; } = -1;
+
+    /// <summary>Stops a self-running placement collecting and starting by itself until the player resumes it.</summary>
+    public bool Paused { get; set; }
 }
 
 public sealed class Job

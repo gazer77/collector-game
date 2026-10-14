@@ -177,6 +177,8 @@ public static class PackValidator
                     Error("land.json", $"{owner} overlaps parcel '{land.Parcels[j].Id}'.");
             }
             CheckCost("land.json", owner, parcel.Cost);
+            foreach (var former in parcel.Formerly.Where(f => land.Parcels.Any(p => p.Id == f)))
+                Error("land.json", $"{owner} lists '{former}' under formerly, but that parcel still exists.");
         }
         var startParcels = land.Parcels.Where(p => p.StartOwned).ToList();
         if (startParcels.Count == 0)

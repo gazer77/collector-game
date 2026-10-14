@@ -38,7 +38,7 @@ public class GameEngineTests
         Assert.Equal(5, state.Balance("gems"));
         Assert.Equal(6, state.Count("wheat"));
         Assert.Equal(7, state.Placements.Count);
-        Assert.Equal(["home"], state.OwnedParcels);
+        Assert.Equal(["yard"], state.OwnedParcels);
         Assert.Equal(3, state.Orders.Count);
         // At level 1 only wheat and eggs are orderable (feed has orderWeight 0, corn unlocks at 2).
         Assert.All(state.Orders, slot => Assert.All(slot.Order!.Items.Keys, item => Assert.Contains(item, new[] { "wheat", "egg" })));
@@ -167,7 +167,7 @@ public class GameEngineTests
     public void Parallel_producers_run_all_slots_at_once()
     {
         var state = NewGame();
-        Ok(state, new PlaceProducer("chicken_coop", 6, 4));
+        Ok(state, new PlaceProducer("chicken_coop", 8, 2));
         var coop = state.First("chicken_coop");
         state.Inventory["chicken_feed"] = 5;
 
@@ -252,15 +252,15 @@ public class GameEngineTests
         Fails(state, new PlaceProducer("chicken_coop", 9, 0), ErrorCode.InvalidPosition);  // spills onto unowned land
         Fails(state, new PlaceProducer("chicken_coop", 3, 2), ErrorCode.InvalidPosition);  // overlaps a field
         Fails(state, new PlaceProducer("chicken_coop", -1, 0), ErrorCode.InvalidPosition);
-        Fails(state, new PlaceProducer("dairy", 6, 4), ErrorCode.Locked);
-        Fails(state, new PlaceProducer("feed_mill", 6, 4), ErrorCode.LimitReached);
+        Fails(state, new PlaceProducer("dairy", 8, 2), ErrorCode.Locked);
+        Fails(state, new PlaceProducer("feed_mill", 8, 2), ErrorCode.LimitReached);
 
-        Ok(state, new PlaceProducer("chicken_coop", 6, 4));
+        Ok(state, new PlaceProducer("chicken_coop", 8, 2));
         Assert.Equal(130, state.Balance("coins"));
-        Fails(state, new PlaceProducer("chicken_coop", 0, 5), ErrorCode.LimitReached);
+        Fails(state, new PlaceProducer("chicken_coop", 4, 2), ErrorCode.LimitReached);
 
         state.Wallet["coins"] = 5;
-        Fails(state, new PlaceProducer("field", 0, 7), ErrorCode.CannotAfford);
+        Fails(state, new PlaceProducer("field", 0, 3), ErrorCode.CannotAfford);
     }
 
     [Fact]
@@ -268,12 +268,12 @@ public class GameEngineTests
     {
         var state = NewGame();
         var field = TestPacks.Farm.Producers["field"];
-        Assert.Equal(8 + 8, GameDefinitions.LimitFor(field, state)); // level 1 step, plus home
+        Assert.Equal(8 + 4, GameDefinitions.LimitFor(field, state)); // level 1 step, plus the yard
 
         state.Level = 3;
         state.Wallet["coins"] = 1000;
-        Ok(state, new BuyParcel("east"));
-        Assert.Equal(12 + 2 * 8, GameDefinitions.LimitFor(field, state));
+        Ok(state, new BuyParcel("orchard"));
+        Assert.Equal(12 + 2 * 4, GameDefinitions.LimitFor(field, state));
 
         // Producers without a per-parcel bonus are unaffected.
         Assert.Equal(1, GameDefinitions.LimitFor(TestPacks.Farm.Producers["feed_mill"], state));
@@ -283,16 +283,16 @@ public class GameEngineTests
     public void Buying_land_opens_it_for_building()
     {
         var state = NewGame();
-        Fails(state, new BuyParcel("east"), ErrorCode.Locked);
+        Fails(state, new BuyParcel("orchard"), ErrorCode.Locked);
+        Fails(state, new PlaceProducer("chicken_coop", 9, 0), ErrorCode.InvalidPosition);
 
-        state.Level = 2;
-        state.Wallet["coins"] = 300;
+        state.Level = 3;
         state.Wallet["coins"] = 650;
-        Ok(state, new BuyParcel("east"));
-        Fails(state, new BuyParcel("east"), ErrorCode.InvalidCommand);
+        Ok(state, new BuyParcel("orchard"));
+        Fails(state, new BuyParcel("orchard"), ErrorCode.InvalidCommand);
 
-        Assert.Equal(150, state.Balance("coins"));
-        Ok(state, new PlaceProducer("chicken_coop", 9, 0)); // now straddles home and east
+        Assert.Equal(250, state.Balance("coins"));
+        Ok(state, new PlaceProducer("chicken_coop", 9, 0)); // now straddles the yard and the orchard
     }
 
     [Fact]
@@ -398,7 +398,7 @@ public class GameEngineTests
 
         // Animals start with as many lanes as slots, so everything runs at once.
         state.Wallet["coins"] = 200;
-        Ok(state, new PlaceProducer("chicken_coop", 6, 4));
+        Ok(state, new PlaceProducer("chicken_coop", 8, 2));
         Assert.Equal(3, _engine.LanesOf(state.First("chicken_coop")));
     }
 
@@ -554,6 +554,111 @@ public class GameEngineTests
         once.Version = chopped.Version = 0;
         Assert.Equal(StateHasher.Serialize(once), StateHasher.Serialize(chopped));
         Assert.True(once.Count("chicken_feed") > 3);
+    }
+
+    private PlayerState WithSelfRunningMill(out Placement mill)
+    {
+        var state = NewGame();
+        state.Level = 8;
+        state.Wallet["coins"] = 20000;
+        Ok(state, new BuyUpgrade("farm_truck"));
+        Ok(state, new BuyUpgrade("conveyor_belts"));
+        state.Inventory["wheat"] = 20;
+        state.Inventory["corn"] = 20;
+        mill = state.First("feed_mill");
+        return state;
+    }
+
+    [Fact]
+    public void A_plan_makes_its_recipes_in_turn()
+    {
+        var state = WithSelfRunningMill(out var mill);
+        Assert.Empty(mill.Jobs); // nothing to repeat yet
+
+        Ok(state, new SetPlan(mill.Id, ["chicken_feed", "chicken_feed", "cow_feed"]));
+        Assert.Equal(["chicken_feed"], mill.Jobs.Select(j => j.Recipe)); // one lane: one at a time, nothing left waiting
+
+        var made = new List<string>();
+        for (var i = 0; i < 4; i++)
+        {
+            made.Add(mill.Jobs[0].Recipe);
+            _engine.AdvanceTime(state, mill.Jobs[0].EndsAt - state.Time);
+        }
+        Assert.Equal(["chicken_feed", "chicken_feed", "cow_feed", "chicken_feed"], made);
+        Assert.Equal(9, state.Count("chicken_feed"));
+        Assert.Equal(3, state.Count("cow_feed"));
+    }
+
+    [Fact]
+    public void Editing_a_plan_keeps_its_place()
+    {
+        var state = WithSelfRunningMill(out var mill);
+        Ok(state, new SetPlan(mill.Id, ["chicken_feed"]));     // starts step 1 straight away
+        Ok(state, new SetPlan(mill.Id, ["chicken_feed", "cow_feed"]));
+        Assert.Equal(0, mill.PlanLast);                        // so cow feed is next, not chicken feed again
+
+        _engine.AdvanceTime(state, mill.Jobs[0].EndsAt - state.Time);
+        Assert.Equal("cow_feed", Assert.Single(mill.Jobs).Recipe);
+
+        Ok(state, new SetPlan(mill.Id, ["chicken_feed", "pig_feed", "cow_feed"])); // a step inserted: start over
+        Assert.Equal(-1, mill.PlanLast);
+        Ok(state, new SetPlan(mill.Id, ["chicken_feed", "cow_feed"]));
+        Assert.Equal(-1, mill.PlanLast);
+        _engine.AdvanceTime(state, mill.Jobs[0].EndsAt - state.Time);
+        Ok(state, new SetPlan(mill.Id, ["cow_feed"]));        // removing the step just made moves back with it
+        Assert.Equal(-1, mill.PlanLast);
+    }
+
+    [Fact]
+    public void A_plan_skips_what_it_is_short_of_and_leaves_what_you_keep()
+    {
+        var state = WithSelfRunningMill(out var mill);
+        state.Inventory["corn"] = 0;
+        Ok(state, new SetKeep("wheat", 17));
+
+        Ok(state, new SetPlan(mill.Id, ["cow_feed", "chicken_feed"]));
+        Assert.Equal("chicken_feed", Assert.Single(mill.Jobs).Recipe); // no corn for cow feed
+        Assert.Equal(18, state.Count("wheat"));
+
+        _engine.AdvanceTime(state, mill.Jobs[0].EndsAt - state.Time);
+        Assert.Empty(mill.Jobs); // another batch would take wheat below 17
+        Assert.Equal(3, state.Count("chicken_feed"));
+
+        Fails(state, new SetPlan(mill.Id, ["grow_wheat"]), ErrorCode.InvalidCommand);
+        Fails(state, new SetPlan(mill.Id, [.. Enumerable.Repeat("chicken_feed", GameEngine.MaxPlanLength + 1)]), ErrorCode.InvalidCommand);
+        Fails(state, new SetPlan(state.First("field").Id, ["grow_wheat"]), ErrorCode.InvalidCommand); // fields don't run themselves yet
+    }
+
+    [Fact]
+    public void Paused_producers_neither_collect_nor_restart_until_resumed()
+    {
+        var state = WithSelfRunningMill(out var mill);
+        Fails(state, new PauseProducer(state.First("field").Id, true), ErrorCode.InvalidCommand);
+
+        Ok(state, new SetPlan(mill.Id, ["chicken_feed"]));
+        Ok(state, new PauseProducer(mill.Id, true));
+        _engine.AdvanceTime(state, 1000 * Second);
+        Assert.True(Assert.Single(mill.Jobs).IsReady(state.Time)); // left where it was
+        Assert.Equal(0, state.Count("chicken_feed"));
+
+        Ok(state, new PauseProducer(mill.Id, false));
+        Assert.Equal(2, mill.Jobs.Count); // the next batch starts beside the finished one
+        _engine.AdvanceTime(state, 1 * Second);
+        Assert.Equal(3, state.Count("chicken_feed"));
+        Assert.False(Assert.Single(mill.Jobs).IsReady(state.Time));
+    }
+
+    [Fact]
+    public void Saves_owning_land_from_the_old_layout_own_the_parcels_that_replaced_it()
+    {
+        var state = NewGame();
+        state.OwnedParcels = ["home", "south"];
+
+        Assert.True(_engine.Migrate(state));
+
+        Assert.Equal(["yard", "meadow", "pond", "woods"], state.OwnedParcels);
+        Assert.False(_engine.Migrate(state));
+        Assert.False(_engine.Migrate(NewGame())); // a new game owns only the yard, and keeps it that way
     }
 
     [Fact]
@@ -713,7 +818,7 @@ public class GameEngineTests
         Assert.Equal(1, _engine.IdleSlots(state, mill)); // finished, uncollected goods don't hold the lane
 
         // Parallel producers: every empty slot can start, and uncollected goods still fill theirs.
-        Ok(state, new PlaceProducer("chicken_coop", 6, 4));
+        Ok(state, new PlaceProducer("chicken_coop", 8, 2));
         var coop = state.First("chicken_coop");
         Ok(state, new Collect(mill.Id));
         Ok(state, new StartRecipe(coop.Id, "lay_egg"));
@@ -728,10 +833,10 @@ public class GameEngineTests
         var state = NewGame();
         state.Wallet["coins"] = 1000;
         state.Level = 3;
-        Fails(state, new PlaceProducer("feed_mill", 6, 4), ErrorCode.LimitReached);
+        Fails(state, new PlaceProducer("feed_mill", 8, 2), ErrorCode.LimitReached);
         state.Level = 4;
-        Ok(state, new PlaceProducer("feed_mill", 6, 4));
-        Fails(state, new PlaceProducer("feed_mill", 6, 7), ErrorCode.LimitReached);
+        Ok(state, new PlaceProducer("feed_mill", 8, 2));
+        Fails(state, new PlaceProducer("feed_mill", 4, 2), ErrorCode.LimitReached);
     }
 
     [Fact]
@@ -863,7 +968,7 @@ public class GameEngineTests
     {
         var state = NewGame();
         Ok(state, new StartRecipe(state.First("feed_mill").Id, "chicken_feed"));
-        Ok(state, new PlaceProducer("chicken_coop", 6, 4));
+        Ok(state, new PlaceProducer("chicken_coop", 8, 2));
         state.Inventory["zzz_last"] = 0;
         state.Inventory.Remove("zzz_last");
 

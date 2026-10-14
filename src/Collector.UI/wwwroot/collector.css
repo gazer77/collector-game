@@ -923,3 +923,94 @@ button { font: inherit; color: inherit; }
         transition: none !important;
     }
 }
+
+/* Self-running producers: pause switch and the schedule of what to make in turn. */
+.paused-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.9);
+    color: var(--hedge);
+    font-size: 0.6875rem;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
+}
+
+.ready-count ~ .paused-badge { top: 1.75rem; }
+
+.auto-box {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--grass);
+    border-radius: 10px;
+}
+
+.auto-box.is-paused { border-left-color: var(--straw); }
+
+.auto-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.auto-state { font-weight: 700; }
+
+.auto-note {
+    color: var(--text-soft);
+    font-size: var(--step--1);
+}
+
+.plan {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    padding: 0;
+    margin: 0;
+    counter-reset: step;
+}
+
+.plan-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 32px;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--step--1);
+    cursor: pointer;
+}
+
+.plan-step::before {
+    counter-increment: step;
+    content: counter(step);
+    font-weight: 800;
+    color: var(--text-soft);
+}
+
+.plan-step.is-next { border: 2px solid var(--grass-deep); font-weight: 700; }
+.plan-step:hover .plan-remove, .plan-step:focus-visible .plan-remove { color: var(--barn); }
+.plan-remove { color: var(--text-soft); font-size: 0.75em; }
+
+.plan-add {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.plan-add-label {
+    color: var(--text-soft);
+    font-size: var(--step--1);
+}

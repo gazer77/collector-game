@@ -56,6 +56,10 @@
                 {
                     <span class="free-count" aria-hidden="true">@free free</span>
                 }
+                @if (placement.Paused && Session.Engine.CanAutoRestart(State, placement))
+                {
+                    <span class="paused-badge" aria-hidden="true">⏸</span>
+                }
                 @if (running is not null)
                 {
                     <span class="progress" aria-hidden="true"><span style="width:@Percent(running, now)%"></span></span>
@@ -106,6 +110,10 @@
         var status = ready > 0 ? $"{ready} ready to collect"
             : running is not null ? $"{Session.Definitions.Recipes[running.Recipe].Name}, {Display.Duration(running.EndsAt - State.Time)} left"
             : placement.Jobs.Count > 0 ? "queued" : "idle";
-        return free > 0 && placement.Jobs.Count > 0 ? $"{producer.Name}: {status}, {free} free" : $"{producer.Name}: {status}";
+        if (free > 0 && placement.Jobs.Count > 0)
+            status += $", {free} free";
+        if (placement.Paused && Session.Engine.CanAutoRestart(State, placement))
+            status += ", paused";
+        return $"{producer.Name}: {status}";
     }
 }

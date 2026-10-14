@@ -22,6 +22,8 @@ namespace Collector.Engine.Commands;
 [JsonDerivedType(typeof(EndTurn), "endTurn")]
 [JsonDerivedType(typeof(SetPace), "setPace")]
 [JsonDerivedType(typeof(SetKeep), "setKeep")]
+[JsonDerivedType(typeof(PauseProducer), "pauseProducer")]
+[JsonDerivedType(typeof(SetPlan), "setPlan")]
 public abstract record GameCommand;
 
 public sealed record PlaceProducer(string Producer, int X, int Y) : GameCommand;
@@ -53,6 +55,12 @@ public sealed record SetPace(double Pace) : GameCommand;
 
 /// <summary>Sets how many of an item helpers leave in storage; null stops the manager selling it at all.</summary>
 public sealed record SetKeep(string Item, int? Minimum) : GameCommand;
+
+/// <summary>Stops (or resumes) a self-running placement collecting and restarting by itself.</summary>
+public sealed record PauseProducer(int PlacementId, bool Paused) : GameCommand;
+
+/// <summary>Sets the recipes a self-running placement makes in turn. An empty list goes back to repeating the last recipe.</summary>
+public sealed record SetPlan(int PlacementId, List<string> Recipes) : GameCommand;
 
 /// <summary>Turn-mode packs only: advances the clock by one turn.</summary>
 public sealed record EndTurn : GameCommand;

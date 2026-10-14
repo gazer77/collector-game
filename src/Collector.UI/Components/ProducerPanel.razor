@@ -13,7 +13,8 @@
     var freeSlots = slots - placement.Jobs.Count;
     var group = engine.GatherGroup(State, placement);
     var groupReady = group.Sum(p => p.Jobs.Count(j => j.IsReady(now)));
-    var auto = engine.AutoRestarts(State, placement);
+    var canAuto = engine.CanAutoRestart(State, placement);
+    var unlocked = defs.RecipesFor(producer.Id).Where(r => State.Level >= r.UnlockLevel).ToList();
 }
 <section class="panel" aria-labelledby="producer-title">
     <header class="panel-head">
@@ -23,9 +24,9 @@
             <p class="panel-sub">
                 @(lanes == slots ? "Everything runs at once" : lanes == 1 ? "One at a time" : $"{lanes} at a time")
                 · @placement.Jobs.Count of @slots slots in use
-                @if (auto)
+                @if (canAuto)
                 {
-                    <text> · Restarts by itself</text>
+                    <text> · @(placement.Paused ? "Paused" : "Runs by itself")</text>
                 }
             </p>
         </div>
@@ -74,6 +75,60 @@
                 <button class="btn" @onclick="() => Session.Do(new SpeedUp(placement.Id))">
                     Finish now <span class="cost"><span aria-hidden="true">@defs.Emoji(defs.Currencies[speedUp.Currency].Asset)</span>@cost</span>
                 </button>
+            }
+        </div>
+    }
+
+    @if (canAuto)
+    {
+        <div class="auto-box @(placement.Paused ? "is-paused" : "")">
+            <div class="auto-head">
+                <span class="auto-state">@(placement.Paused ? "Paused: finished goods wait for you" : "Collects and starts batches by itself")</span>
+                <button class="btn btn-small" @onclick="() => Session.Do(new PauseProducer(placement.Id, !placement.Paused))">
+                    @(placement.Paused ? "Resume" : "Pause")
+                </button>
+            </div>
+            @if (unlocked.Count > 1)
+            {
+                <p class="auto-note">
+                    @(placement.Plan.Count > 0 ? "Makes these in turn, skipping any it's short of. Tap a step to remove it."
+                      : placement.LastRecipe is { } last ? $"Repeats {RecipeName(defs.Recipes[last])}. Add steps to make several things in turn."
+                      : "Add steps for it to make in turn, or start something and it repeats it.")
+                </p>
+                @if (placement.Plan.Count > 0)
+                {
+                    <ol class="plan" aria-label="Schedule">
+                        @for (var i = 0; i < placement.Plan.Count; i++)
+                        {
+                            var index = i;
+                            var step = defs.Recipes[placement.Plan[index]];
+                            var isNext = index == (placement.PlanLast + 1) % placement.Plan.Count;
+                            <li>
+                                <button class="plan-step @(isNext ? "is-next" : "")" title="Remove from the schedule"
+                                        @onclick="() => Session.Do(new SetPlan(placement.Id, placement.Plan.Where((_, j) => j != index).ToList()))">
+                                    <span aria-hidden="true">@defs.Emoji(defs.Items[step.Outputs.Keys.First()].Asset)</span>
+                                    @RecipeName(step)
+                                    @if (isNext) { <span class="visually-hidden">(next)</span> }
+                                    <span class="plan-remove" aria-hidden="true">✕</span>
+                                </button>
+                            </li>
+                        }
+                    </ol>
+                }
+                <div class="plan-add">
+                    <span class="plan-add-label">Add</span>
+                    @foreach (var recipe in unlocked)
+                    {
+                        <button class="btn btn-small btn-quiet" disabled="@(placement.Plan.Count >= Collector.Engine.Simulation.GameEngine.MaxPlanLength)"
+                                @onclick="() => Session.Do(new SetPlan(placement.Id, [.. placement.Plan, recipe.Id]))">
+                            <span aria-hidden="true">@defs.Emoji(defs.Items[recipe.Outputs.Keys.First()].Asset)</span>@RecipeName(recipe)
+                        </button>
+                    }
+                    @if (placement.Plan.Count > 0)
+                    {
+                        <button class="btn btn-small btn-quiet" @onclick="() => Session.Do(new SetPlan(placement.Id, []))">Clear</button>
+                    }
+                </div>
             }
         </div>
     }
@@ -184,4 +239,7 @@
     [Parameter, EditorRequired] public int PlacementId { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<int> OnMove { get; set; }
+
+    private string RecipeName(RecipeDefinition recipe) =>
+        string.IsNullOrEmpty(recipe.Name) ? Session.Definitions.Items[recipe.Outputs.Keys.First()].Name : recipe.Name;
 }

@@ -57,12 +57,14 @@ public sealed class GameEngine(GameDefinitions definitions)
             EndTurn => Turn(state, events),
             SetPace c => ChangePace(state, c),
             SetKeep c => ChangeKeep(state, c),
+            PauseProducer c => Pause(state, c),
+            SetPlan c => ChangePlan(state, c),
             _ => CommandResult.Fail(ErrorCode.InvalidCommand, $"Unsupported command {command.GetType().Name}."),
         };
         if (failure is not null)
             return failure;
 
-        RunHelpers(state, events);
+        RunAutomation(state, events);
         state.Version++;
         return CommandResult.Success(events);
     }
@@ -206,9 +208,129 @@ public sealed class GameEngine(GameDefinitions definitions)
         return [placement, .. state.Placements.Where(p => p != placement && sweeps.Any(u => u.AppliesTo(Definitions.Producers[p.Producer])))];
     }
 
-    /// <summary>Whether <paramref name="placement"/> collects and restarts by itself.</summary>
-    public bool AutoRestarts(PlayerState state, Placement placement) =>
+    /// <summary>Whether <paramref name="placement"/> has equipment that lets it run by itself, paused or not.</summary>
+    public bool CanAutoRestart(PlayerState state, Placement placement) =>
         ActiveUpgrades(state, placement).Any(u => u.AutoRestart);
+
+    /// <summary>Whether <paramref name="placement"/> collects and restarts by itself right now (it can, and isn't paused).</summary>
+    public bool AutoRestarts(PlayerState state, Placement placement) =>
+        !placement.Paused && CanAutoRestart(state, placement);
+
+    /// <summary>The longest plan a placement may have.</summary>
+    public const int MaxPlanLength = 12;
+
+    /// <summary>
+    /// Starts planned recipes on every self-running placement until each has as many jobs underway as it has
+    /// lanes (so nothing waits in the queue holding ingredients), slots run out, or nothing in its plan can start.
+    /// Ingredients are only used down to the amounts the player keeps. Returns whether anything started.
+    /// </summary>
+    private bool FillAutoPlacements(PlayerState state)
+    {
+        var changed = false;
+        foreach (var placement in state.Placements)
+        {
+            if (!AutoRestarts(state, placement))
+                continue;
+            while (placement.Jobs.Count < SlotsOf(placement)
+                && placement.Jobs.Count(j => !j.IsReady(state.Time)) < LanesOf(placement)
+                && StartNextPlanned(state, placement))
+            {
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    /// <summary>Starts the next recipe in the placement's plan that can start, skipping any it's short of.</summary>
+    private bool StartNextPlanned(PlayerState state, Placement placement)
+    {
+        List<string> plan = placement.Plan.Count > 0 ? placement.Plan : placement.LastRecipe is { } last ? [last] : [];
+        for (var k = 0; k < plan.Count; k++)
+        {
+            var index = (placement.PlanLast + 1 + k) % plan.Count;
+            var recipe = Definitions.Recipes[plan[index]];
+            if (recipe.Inputs.Any(kv => state.Count(kv.Key) - kv.Value < state.Keep(kv.Key)))
+                continue;
+            if (Start(state, new StartRecipe(placement.Id, recipe.Id)) is null)
+            {
+                if (placement.Plan.Count > 0)
+                    placement.PlanLast = index;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private CommandResult? Pause(PlayerState state, PauseProducer c)
+    {
+        if (state.FindPlacement(c.PlacementId) is not { } placement)
+            return NoPlacement(c.PlacementId);
+        if (!CanAutoRestart(state, placement))
+            return CommandResult.Fail(ErrorCode.InvalidCommand, $"{Definitions.Producers[placement.Producer].Name} doesn't run by itself.");
+        placement.Paused = c.Paused;
+        return null;
+    }
+
+    private CommandResult? ChangePlan(PlayerState state, SetPlan c)
+    {
+        if (state.FindPlacement(c.PlacementId) is not { } placement)
+            return NoPlacement(c.PlacementId);
+        if (!CanAutoRestart(state, placement))
+            return CommandResult.Fail(ErrorCode.InvalidCommand, $"{Definitions.Producers[placement.Producer].Name} doesn't run by itself.");
+        if (c.Recipes.Count > MaxPlanLength)
+            return CommandResult.Fail(ErrorCode.InvalidCommand, $"A plan can have at most {MaxPlanLength} steps.");
+        foreach (var id in c.Recipes)
+        {
+            if (!Definitions.Recipes.TryGetValue(id, out var recipe))
+                return Unknown("recipe", id);
+            if (recipe.Producer != placement.Producer)
+                return CommandResult.Fail(ErrorCode.InvalidCommand, $"{recipe.Id} can't be made in {placement.Producer}.");
+            if (state.Level < recipe.UnlockLevel)
+                return Locked(string.IsNullOrEmpty(recipe.Name) ? Definitions.Items[recipe.Outputs.Keys.First()].Name : recipe.Name, recipe.UnlockLevel);
+        }
+        placement.PlanLast = RebasePlanLast(placement.Plan, c.Recipes, placement.PlanLast);
+        placement.Plan = [.. c.Recipes];
+        return null;
+    }
+
+    /// <summary>
+    /// Where an edited plan carries on from: adding steps at the end, or removing one, keeps its place in the cycle;
+    /// any other change starts it from the top.
+    /// </summary>
+    private static int RebasePlanLast(List<string> old, List<string> updated, int last)
+    {
+        if (last < 0 || last >= old.Count)
+            return -1;
+        if (updated.Count >= old.Count && updated.Take(old.Count).SequenceEqual(old))
+            return last;
+        if (updated.Count == old.Count - 1)
+        {
+            var removed = Enumerable.Range(0, updated.Count).FirstOrDefault(i => updated[i] != old[i], updated.Count);
+            if (old.Where((_, i) => i != removed).SequenceEqual(updated))
+                return removed <= last ? last - 1 : last;
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Brings a save from an older version of the pack up to date: land it owned under an earlier layout becomes
+    /// the parcels that replaced it. Hosts call this after loading a save. Returns whether anything changed.
+    /// </summary>
+    public bool Migrate(PlayerState state)
+    {
+        var changed = false;
+        foreach (var old in state.OwnedParcels.Where(id => !Definitions.Parcels.ContainsKey(id)).ToList())
+        {
+            state.OwnedParcels.Remove(old);
+            foreach (var parcel in Definitions.Land.Parcels)
+            {
+                if (parcel.Formerly.Contains(old) && !state.OwnedParcels.Contains(parcel.Id))
+                    state.OwnedParcels.Add(parcel.Id);
+            }
+            changed = true;
+        }
+        return changed;
+    }
 
     /// <summary>
     /// Collects the placement's finished jobs, in order, until storage runs out. Returns how many came in;
@@ -518,14 +640,13 @@ public sealed class GameEngine(GameDefinitions definitions)
         state.Upgrades.Select(id => Definitions.Upgrades[id]).Where(u => u.IsFarmWide);
 
     /// <summary>
-    /// Lets hired helpers act on the current state: first deliver what orders they can (orders pay better),
-    /// then sell what's above the amounts kept. Returns whether anything changed.
+    /// Lets everything that acts by itself act on the current state: the assistant delivers what orders it can
+    /// (orders pay best), self-running producers start their next batches, then the manager sells what's above the
+    /// amounts kept. Returns whether anything changed.
     /// </summary>
-    private bool RunHelpers(PlayerState state, List<GameEvent> events)
+    private bool RunAutomation(PlayerState state, List<GameEvent> events)
     {
         var helpers = Helpers(state).ToList();
-        if (helpers.Count == 0)
-            return false;
         var changed = false;
 
         if (helpers.Any(h => h.FillsOrders) && Definitions.Orders is { } orders)
@@ -539,6 +660,8 @@ public sealed class GameEngine(GameDefinitions definitions)
                 }
             }
         }
+
+        changed |= FillAutoPlacements(state);
 
         if (helpers.Any(h => h.SellsExcess) && Definitions.Market is { } market)
         {
@@ -639,11 +762,6 @@ public sealed class GameEngine(GameDefinitions definitions)
                 {
                     // Something changed in storage, so whatever was stuck may fit now.
                     stalled.Clear();
-                    for (var i = 0; i < gathered; i++)
-                    {
-                        if (collect.Placement.LastRecipe is not { } recipe || Start(state, new StartRecipe(collect.Placement.Id, recipe)) is not null)
-                            break;
-                    }
                 }
             }
             else
@@ -651,12 +769,12 @@ public sealed class GameEngine(GameDefinitions definitions)
                 state.Time = orderAt!.Value;
                 RefillOrders(state, events);
             }
-            if (RunHelpers(state, events))
+            if (RunAutomation(state, events))
                 stalled.Clear();
         }
         state.Time = end;
         RefillOrders(state, events);
-        RunHelpers(state, events);
+        RunAutomation(state, events);
     }
 
     /// <summary>When the next empty order slot gets an order, if that's after now and no later than <paramref name="end"/>.</summary>

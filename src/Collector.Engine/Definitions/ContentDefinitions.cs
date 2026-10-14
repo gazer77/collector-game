@@ -200,6 +200,9 @@ public sealed record ParcelDefinition
     public int UnlockLevel { get; init; } = 1;
     public bool StartOwned { get; init; }
 
+    /// <summary>Ids of parcels from an earlier land layout that this one replaces. Saves that owned one of them own this instead.</summary>
+    public List<string> Formerly { get; init; } = [];
+
     public bool Contains(int x, int y) => x >= X && x < X + Width && y >= Y && y < Y + Height;
 }
 

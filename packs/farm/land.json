@@ -2,9 +2,13 @@
   "width": 20,
   "height": 16,
   "parcels": [
-    { "id": "home",      "x": 0,  "y": 0, "width": 10, "height": 8, "startOwned": true },
-    { "id": "east",      "x": 10, "y": 0, "width": 10, "height": 8, "cost": { "currencies": { "coins": 500 } },  "unlockLevel": 2 },
-    { "id": "south",     "x": 0,  "y": 8, "width": 10, "height": 8, "cost": { "currencies": { "coins": 1500 } }, "unlockLevel": 4 },
-    { "id": "southeast", "x": 10, "y": 8, "width": 10, "height": 8, "cost": { "currencies": { "coins": 4000 } }, "unlockLevel": 6 }
+    { "id": "yard",      "x": 0,  "y": 0,  "width": 10, "height": 4, "startOwned": true, "formerly": [ "home" ] },
+    { "id": "meadow",    "x": 0,  "y": 4,  "width": 10, "height": 4, "cost": { "currencies": { "coins": 250 } },  "unlockLevel": 2, "formerly": [ "home" ] },
+    { "id": "orchard",   "x": 10, "y": 0,  "width": 10, "height": 4, "cost": { "currencies": { "coins": 400 } },  "unlockLevel": 3, "formerly": [ "east" ] },
+    { "id": "hillside",  "x": 10, "y": 4,  "width": 10, "height": 4, "cost": { "currencies": { "coins": 650 } },  "unlockLevel": 4, "formerly": [ "east" ] },
+    { "id": "pond",      "x": 0,  "y": 8,  "width": 10, "height": 4, "cost": { "currencies": { "coins": 1000 } }, "unlockLevel": 5, "formerly": [ "south" ] },
+    { "id": "woods",     "x": 0,  "y": 12, "width": 10, "height": 4, "cost": { "currencies": { "coins": 1500 } }, "unlockLevel": 6, "formerly": [ "south" ] },
+    { "id": "creek",     "x": 10, "y": 8,  "width": 10, "height": 4, "cost": { "currencies": { "coins": 2200 } }, "unlockLevel": 7, "formerly": [ "southeast" ] },
+    { "id": "far_field", "x": 10, "y": 12, "width": 10, "height": 4, "cost": { "currencies": { "coins": 3000 } }, "unlockLevel": 8, "formerly": [ "southeast" ] }
   ]
 }
