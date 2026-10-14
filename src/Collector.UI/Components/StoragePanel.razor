@@ -5,15 +5,13 @@
     var engine = Session.Engine;
     var sellCurrency = defs.Market is { } market ? defs.Currencies[market.SellCurrency] : null;
     var manager = Session.HasHelper(h => h.SellsExcess);
-    var assistant = Session.HasHelper(h => h.FillsOrders);
-    var selfRunning = State.Upgrades.Any(id => defs.Upgrades[id].AutoRestart);
-    var keeps = manager || assistant || selfRunning;
 }
 <section class="panel" aria-label="Storage">
-    @if (keeps)
+    @if (manager)
     {
         <p class="panel-intro">
-            @(manager ? "Your manager sells anything above the amount you keep. Leave Keep empty and that item is never sold. " : "")@(assistant ? "Your assistant never dips below the amounts you keep to fill orders. " : "")@(selfRunning ? "Self-running equipment never uses ingredients below the amounts you keep." : "")
+            Your manager sells anything above the amount you keep. Leave Keep empty and that item is never sold.
+            Orders and self-running equipment can still use what you keep.
         </p>
     }
     @foreach (var storage in defs.Content.Storage)
@@ -57,9 +55,9 @@
                             {
                                 <div class="stock-main">
                                     <span class="stock-name">@item.Name</span>
-                                    @if (keeps)
+                                    @if (manager)
                                     {
-                                        <label class="keep" title="Helpers and self-running equipment leave at least this many">
+                                        <label class="keep" title="Your manager never sells below this">
                                             <span class="keep-label">Keep</span>
                                             <input class="keep-input" type="number" min="0" inputmode="numeric" placeholder="–"
                                                    value="@(State.KeepAtLeast.TryGetValue(item.Id, out var keep) ? keep.ToString() : "")"

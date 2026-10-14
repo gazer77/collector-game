@@ -610,19 +610,24 @@ public class GameEngineTests
     }
 
     [Fact]
-    public void A_plan_skips_what_it_is_short_of_and_leaves_what_you_keep()
+    public void A_plan_skips_what_it_is_short_of()
     {
         var state = WithSelfRunningMill(out var mill);
         state.Inventory["corn"] = 0;
-        Ok(state, new SetKeep("wheat", 17));
+        Ok(state, new SetKeep("wheat", 20)); // only stops the manager selling; machines may still use it
 
         Ok(state, new SetPlan(mill.Id, ["cow_feed", "chicken_feed"]));
         Assert.Equal("chicken_feed", Assert.Single(mill.Jobs).Recipe); // no corn for cow feed
         Assert.Equal(18, state.Count("wheat"));
 
         _engine.AdvanceTime(state, mill.Jobs[0].EndsAt - state.Time);
-        Assert.Empty(mill.Jobs); // another batch would take wheat below 17
-        Assert.Equal(3, state.Count("chicken_feed"));
+        Assert.Equal("chicken_feed", Assert.Single(mill.Jobs).Recipe); // still no corn
+        Assert.Equal(16, state.Count("wheat"));
+
+        state.Inventory["wheat"] = 1;
+        _engine.AdvanceTime(state, mill.Jobs[0].EndsAt - state.Time);
+        Assert.Empty(mill.Jobs); // short of everything: it waits
+        Assert.Equal(6, state.Count("chicken_feed"));
 
         Fails(state, new SetPlan(mill.Id, ["grow_wheat"]), ErrorCode.InvalidCommand);
         Fails(state, new SetPlan(mill.Id, [.. Enumerable.Repeat("chicken_feed", GameEngine.MaxPlanLength + 1)]), ErrorCode.InvalidCommand);
@@ -642,8 +647,7 @@ public class GameEngineTests
         Assert.Equal(0, state.Count("chicken_feed"));
 
         Ok(state, new PauseProducer(mill.Id, false));
-        Assert.Equal(2, mill.Jobs.Count); // the next batch starts beside the finished one
-        _engine.AdvanceTime(state, 1 * Second);
+        _engine.AdvanceTime(state, 1 * Second); // collects what was waiting, then starts the next batch
         Assert.Equal(3, state.Count("chicken_feed"));
         Assert.False(Assert.Single(mill.Jobs).IsReady(state.Time));
     }
@@ -717,24 +721,24 @@ public class GameEngineTests
     }
 
     [Fact]
-    public void The_order_assistant_delivers_what_it_can_without_dipping_below_amounts_kept()
+    public void The_order_assistant_delivers_every_order_it_has_the_goods_for()
     {
         var state = NewGame();
         state.Level = 5;
         state.Wallet["coins"] = 1500;
         state.Inventory.Clear();
         state.Orders[0].Order = new Order { Id = 900, Items = { ["wheat"] = 3 }, Rewards = { ["coins"] = 40 } };
-        state.Orders[1].Order = new Order { Id = 901, Items = { ["corn"] = 2 }, Rewards = { ["coins"] = 30 } };
+        state.Orders[1].Order = new Order { Id = 901, Items = { ["corn"] = 4 }, Rewards = { ["coins"] = 30 } };
         state.Orders[2] = new OrderSlot { AvailableAt = long.MaxValue };
         state.Inventory["wheat"] = 5;
         state.Inventory["corn"] = 3;
-        Ok(state, new SetKeep("corn", 2));
+        Ok(state, new SetKeep("wheat", 10)); // keep amounts are for the manager, not orders
 
         var result = _engine.Apply(state, new BuyUpgrade("order_assistant"));
 
         Assert.True(result.Ok);
         Assert.Null(state.Orders[0].Order);                 // delivered
-        Assert.Equal(901, state.Orders[1].Order!.Id);       // would leave 1 corn, below the 2 kept
+        Assert.Equal(901, state.Orders[1].Order!.Id);       // only 3 of 4 corn
         Assert.Equal(2, state.Count("wheat"));
         Assert.Equal(40, state.Balance("coins"));
         Assert.Contains(result.Events, e => e is OrderCompleted { OrderId: 900, ByHelper: true });

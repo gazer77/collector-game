@@ -222,17 +222,17 @@ public sealed class GameEngine(GameDefinitions definitions)
     /// <summary>
     /// Starts planned recipes on every self-running placement until each has as many jobs underway as it has
     /// lanes (so nothing waits in the queue holding ingredients), slots run out, or nothing in its plan can start.
-    /// Ingredients are only used down to the amounts the player keeps. Returns whether anything started.
+    /// Producers that replant from their own harvest (fields) go first, so a building never eats their seed. Returns
+    /// whether anything started.
     /// </summary>
     private bool FillAutoPlacements(PlayerState state)
     {
         var changed = false;
-        foreach (var placement in state.Placements)
+        foreach (var placement in state.Placements.Where(p => AutoRestarts(state, p)).OrderBy(p => ReplantsItself(p) ? 0 : 1))
         {
-            if (!AutoRestarts(state, placement))
-                continue;
-            while (placement.Jobs.Count < SlotsOf(placement)
-                && placement.Jobs.Count(j => !j.IsReady(state.Time)) < LanesOf(placement)
+            // Finished goods still sitting here mean storage was full: wait for them to go before starting more.
+            while (placement.Jobs.Count < Math.Min(SlotsOf(placement), LanesOf(placement))
+                && !placement.Jobs.Any(j => j.IsReady(state.Time))
                 && StartNextPlanned(state, placement))
             {
                 changed = true;
@@ -240,6 +240,10 @@ public sealed class GameEngine(GameDefinitions definitions)
         }
         return changed;
     }
+
+    /// <summary>Whether any recipe of the placement's producer gives back one of its own ingredients, as crops do.</summary>
+    private bool ReplantsItself(Placement placement) =>
+        Definitions.RecipesFor(placement.Producer).Any(r => r.Inputs.Keys.Any(r.Outputs.ContainsKey));
 
     /// <summary>Starts the next recipe in the placement's plan that can start, skipping any it's short of.</summary>
     private bool StartNextPlanned(PlayerState state, Placement placement)
@@ -249,8 +253,6 @@ public sealed class GameEngine(GameDefinitions definitions)
         {
             var index = (placement.PlanLast + 1 + k) % plan.Count;
             var recipe = Definitions.Recipes[plan[index]];
-            if (recipe.Inputs.Any(kv => state.Count(kv.Key) - kv.Value < state.Keep(kv.Key)))
-                continue;
             if (Start(state, new StartRecipe(placement.Id, recipe.Id)) is null)
             {
                 if (placement.Plan.Count > 0)
@@ -653,7 +655,7 @@ public sealed class GameEngine(GameDefinitions definitions)
         {
             for (var slot = 0; slot < state.Orders.Count; slot++)
             {
-                if (state.Orders[slot].Order is { } order && order.Items.All(kv => state.Count(kv.Key) - kv.Value >= state.Keep(kv.Key)))
+                if (state.Orders[slot].Order is { } order && CheckItems(state, order.Items) is null)
                 {
                     Deliver(state, orders, slot, order, byHelper: true, events);
                     changed = true;

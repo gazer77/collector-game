@@ -44,7 +44,7 @@ public static class Display
         if (upgrade.SellsExcess)
             parts.Add("Sells anything above the amounts you keep (set them in Storage)");
         if (upgrade.FillsOrders)
-            parts.Add("Delivers orders as soon as you have the goods, leaving what you keep");
+            parts.Add("Delivers orders as soon as you have the goods");
         return string.Join(" · ", parts);
     }
 

@@ -40,7 +40,7 @@ public sealed class PlayerState
     /// <summary>Upgrades bought, in purchase order.</summary>
     public List<string> Upgrades { get; set; } = [];
 
-    /// <summary>Per item, how many to keep when helpers sell goods or fill orders. Items not listed are never sold by helpers.</summary>
+    /// <summary>Per item, how many the farm manager leaves when selling. Items not listed are never sold by the manager.</summary>
     public OrdinalDictionary<int> KeepAtLeast { get; set; } = new();
 
     public List<Placement> Placements { get; set; } = [];

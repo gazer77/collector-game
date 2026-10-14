@@ -771,12 +771,6 @@ button { font: inherit; color: inherit; }
 
 .xp { color: var(--text-soft); font-size: var(--step--1); }
 
-.order-note {
-    grid-column: 1 / -1;
-    color: var(--text-soft);
-    font-size: var(--step--1);
-}
-
 .order-actions {
     grid-column: 1 / -1;
     display: flex;

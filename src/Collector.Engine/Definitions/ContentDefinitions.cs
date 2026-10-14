@@ -145,7 +145,7 @@ public sealed record UpgradeDefinition
     /// <summary>Farm-wide: sells anything above the amount the player chose to keep (see PlayerState.KeepAtLeast).</summary>
     public bool SellsExcess { get; init; }
 
-    /// <summary>Farm-wide: delivers any order that can be filled without dipping below what the player keeps.</summary>
+    /// <summary>Farm-wide: delivers any order as soon as the goods are in storage.</summary>
     public bool FillsOrders { get; init; }
 
     /// <summary>Applies to the whole farm rather than to particular producers.</summary>

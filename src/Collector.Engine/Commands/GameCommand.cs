@@ -53,7 +53,7 @@ public sealed record DiscardOrder(int Slot) : GameCommand;
 /// <summary>Changes how fast production runs (see <see cref="State.PlayerState.Pace"/>). Jobs already underway speed up or slow down too.</summary>
 public sealed record SetPace(double Pace) : GameCommand;
 
-/// <summary>Sets how many of an item helpers leave in storage; null stops the manager selling it at all.</summary>
+/// <summary>Sets how many of an item the farm manager leaves in storage; null stops the manager selling it at all.</summary>
 public sealed record SetKeep(string Item, int? Minimum) : GameCommand;
 
 /// <summary>Stops (or resumes) a self-running placement collecting and restarting by itself.</summary>
